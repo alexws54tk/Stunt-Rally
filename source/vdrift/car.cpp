@@ -10,41 +10,43 @@
 #include "../ogre/common/Def_Str.h"
 #include "../ogre/common/data/CData.h"
 #include "../ogre/common/CScene.h"
+#include "../ogre/common/GraphView.h"
 #include "../ogre/CGame.h"  //+ replay
 #include "../ogre/CarModel.h"  //+ camera pos
 #include "../ogre/FollowCamera.h"  //+ camera pos
-#include "../ogre/common/GraphView.h"
+#include "../road/PaceNotes.h"  //+ pace reset
 #include "../network/protocol.hpp"
+#include "../sound/SoundMgr.h"
 #include "tobullet.h"
 #include "game.h"  //sound
 
 
+///  ctor
 CAR::CAR()
 	:pSet(0), pApp(0), id(0), pCarM(0)
 	,last_steer(0)
-	,sector(-1)
 	,iCamNext(0), bLastChk(0),bLastChkOld(0)
 	,bRewind(0),bRewindOld(0),timeRew(0.f)
-	,fluidHitOld(0)
 	,trackPercentCopy(0), bRemoteCar(0)
 	,bResetPos(0)
 	,dmgLastCheck(0.f), sphYawAtStart(0.f)
 {
+	SetNumWheels(4);
 	//dynamics.pCar = this;
-	
-	for (int i = 0; i < 4; i++)
-	{
-		curpatch[i] = NULL;
-		//wheelnode[i] = NULL;
-		//floatingnode[i] = NULL;
-	}
-	for (int i=0; i < Ncrashsounds; ++i)
-		crashsoundtime[i] = 0.f;
 }
 
-///unload any loaded assets
+void CAR::SetNumWheels(int n)
+{
+	numWheels = n;
+	suspbump.resize(n);  curpatch.resize(n);
+	sounds.SetNumWheels(n);
+}
+
+///  dtor
 CAR::~CAR()
-{	}
+{
+	sounds.Destroy();
+}
 
 
 //--------------------------------------------------------------------------------------------------------------------------
@@ -53,40 +55,25 @@ bool CAR::Load(class App* pApp1,
 	const std::string & carname,
 	const MATHVECTOR<float,3> & init_pos, const QUATERNION<float> & init_rot,
 	COLLISION_WORLD & world,
-	bool soundenabled, const SOUNDINFO & sound_device_info, const SOUND_LIB & soundbufferlibrary,
-	bool defaultabs, bool defaulttcs,
+	bool abs, bool tcs,
 	bool isRemote, int idCar,
-  	bool debugmode,
-  	std::ostream & info_output, std::ostream & error_output)
+  	bool debugmode)
 {
 	pApp = pApp1;  pGame = pApp->pGame;  pSet = pApp->pSet;
 
 	cartype = carname;
 	bRemoteCar = isRemote;  id = idCar;
-	std::stringstream nullout;
-	std::string carpath = PATHMANAGER::Cars()+"/"+carname+"/";  // orig dir for .joe
+	std::string carpath = PATHMANAGER::Cars()+"/"+carname+"/";
 
-	#if 0  // .joe meshes
-	if (!LoadInto( carpath+"body.joe", bodymodel, error_output)) ;
-	if (!LoadInto( carpath+"interior.joe", interiormodel, nullout )) ;
-	if (!LoadInto( carpath+"glass.joe", glassmodel, nullout )) ;
-	std::stringstream nullout;
-
-	for (int i = 0; i < 2; i++)
-	{
-		if (!LoadInto( carpath+"wheel_front.joe", wheelmodelfront, error_output)) ;
-		LoadInto( carpath+"floating_front.joe", floatingmodelfront, nullout);
-	}
-	for (int i = 2; i < 4; i++)
-	{
-		if (!LoadInto( carpath+"wheel_rear.joe", wheelmodelrear, error_output)) ;
-		LoadInto( carpath+"floating_rear.joe", floatingmodelrear, nullout);
-	}
-	#endif
-
-	// get coordinate system version
-	int version = 1;
+	//  get coordinate system version
+	int version = 2;
 	cf.GetParam("version", version);
+	
+	//  wheels count
+	int nw = 0;
+	cf.GetParam("wheels", nw);
+	if (nw >= 2 && nw <= MAX_WHEELS)
+		SetNumWheels(nw);
 	
 	
 	///-  custom car collision params  (dimensions and sphere placement)
@@ -127,38 +114,32 @@ bool CAR::Load(class App* pApp1,
 	cd.coll_flTrig_H -= cd.com_ofs_H;  //|
 	
 
-	// load cardynamics
-	{
-		if (!cd.Load(pGame, cf, error_output))  return false;
+	//  load cardynamics
+	if (!cd.Load(pGame, cf))
+		return false;
 
-		MATHVECTOR<double,3> position;
-		QUATERNION<double> orientation;
-		position = init_pos;	
-		orientation = init_rot;
+	MATHVECTOR<double,3> pos = init_pos;
+	QUATERNION<double> rot;  rot = init_rot;
 
-		float stOfsY = 0.f;
-		cf.GetParam("collision.start-offsetY", stOfsY);
-			position[2] += stOfsY -0.4/**/ + cd.com_ofs_H;  //|
+	float stOfsY = 0.f;
+	cf.GetParam("collision.start-offsetY", stOfsY);
+		pos[2] += stOfsY -0.4/**/ + cd.com_ofs_H;  //|
 
-		posAtStart = posLastCheck = position;
-		rotAtStart = rotLastCheck = orientation;
-		dmgLastCheck = 0.f;
-		
-		cd.Init(pSet, pApp->scn->sc, pApp->scn->data->fluids,
-			world, bodymodel, wheelmodelfront, wheelmodelrear, position, orientation);
+	posAtStart = posLastCheck = pos;
+	rotAtStart = rotLastCheck = rot;
+	dmgLastCheck = 0.f;
+	
+	cd.Init(pSet, pApp->scn->sc, pApp->scn->data->fluids,
+		world, pos, rot);
 
-		sphYawAtStart = cd.sphereYaw;
+	sphYawAtStart = cd.sphereYaw;
 
-		cd.SetABS(defaultabs);
-		cd.SetTCS(defaulttcs);
-	}
+	cd.SetABS(abs);  cd.SetTCS(tcs);
 
-	// load sounds
-	if (soundenabled)
-	{
-		if (!LoadSounds(carpath, sound_device_info, soundbufferlibrary, info_output, error_output))
-			return false;
-	}
+
+	//  load sounds
+	if (!pGame->snd->isDisabled())
+		LoadSounds(carpath);
 
 	//mz_nominalmax = (GetTireMaxMz(FRONT_LEFT) + GetTireMaxMz(FRONT_RIGHT))*0.5;  //!! ff
 
@@ -167,29 +148,12 @@ bool CAR::Load(class App* pApp1,
 
 
 //--------------------------------------------------------------------------------------------------------------------------
-bool CAR::LoadInto(const std::string & joefile, MODEL_JOE03 & output_model,	std::ostream & error_output)
-{
-	if (!output_model.Loaded())
-	{
-		std::stringstream nullout;
-		if (!output_model.ReadFromFile(joefile.substr(0,std::max((long unsigned int)0,(long unsigned int) joefile.size()-3))+"ova", nullout))
-		{
-			if (!output_model.Load(joefile, error_output))
-			{
-				/*error_output << "Error loading model: " << joefile << std::endl;*/
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-
 void CAR::Update(double dt)
 {
 	dynamics.Update();
-	UpdateSounds(dt);
-
+	
+	UpdateSounds(dt);  // and damage
+	
 	///  graphs new values  .-_/\_.-
 	if (pApp->pSet->show_graphs && id == 0)  // for 1st car
 		GraphsNewVals(dt);  // implementation in Hud_Graphs.cpp
@@ -234,7 +198,7 @@ void CAR::HandleInputs(const std::vector <float> & inputs, float dt)
 			steer_value = -inputs[CARINPUT::STEER_LEFT];
 
 		#ifdef CAR_PRV
-		if (!dynamics.hover && !dynamics.sphere)
+		//if (!dynamics.hover && !dynamics.sphere)
 			steer_value = -1.f;
 		#endif
 		dynamics.SetSteering(steer_value, pGame->GetSteerRange());
@@ -275,11 +239,10 @@ void CAR::HandleInputs(const std::vector <float> & inputs, float dt)
 	bLastChk = inputs[CARINPUT::LAST_CHK];
 	
 	if (bResetPos)  // reset game
-	{	ResetPos(true);  bResetPos = false;  }
+	{	ResetPos(true);  bResetPos = false;  pGame->bResetObj = true;  }
 	else
 	if (bLastChk && !bLastChkOld)
 		ResetPos(false);  // goto last checkpoint
-		//ResetPos(false, shift);  // for 2nd ... press twice?
 	
 
 	///  Rewind  with cooldown
@@ -321,11 +284,11 @@ float CAR::GetTireSquealAmount(WHEEL_POSITION i, float* slide, float* s1, float*
 
 	float wheelspeed = dynamics.GetWheel(i).GetAngularVelocity() * dynamics.GetWheel(i).GetRadius();
 	groundvel[0] -= wheelspeed;
-	groundvel[1] *= 2.0;
-	groundvel[2] = 0;
+	groundvel[1] *= 2.f;
+	groundvel[2] = 0.f;
 
-	float squeal = (groundvel.Magnitude() - 3.0) * 0.2;
-	if (slide)  *slide = squeal + 0.6;
+	float squeal = (groundvel.Magnitude() - 3.f) * 0.2f;
+	if (slide)  *slide = squeal + 0.6f;
 
 	Dbl slideratio = dynamics.GetWheel(i).slips.slideratio;
 	Dbl slipratio = dynamics.GetWheel(i).slips.slipratio;
@@ -344,8 +307,8 @@ float CAR::GetTireSquealAmount(WHEEL_POSITION i, float* slide, float* s1, float*
 	//if (s2)  *s2 = std::max(-10.f, brk*1.f);  //test
 	squeal += std::max(0.f, brk);
 
-	if (squeal < 0)  squeal = 0;
-	if (squeal > 1)  squeal = 1;  // 0..1
+	if (squeal < 0.f)  squeal = 0.f;
+	if (squeal > 1.f)  squeal = 1.f;  // 0..1
 	return squeal;
 }
 
@@ -451,18 +414,19 @@ void CAR::ResetPos(bool fromStart)
 
 		dynamics.boostFuel = dynamics.boostFuelStart;  // restore boost fuel
 		dynamics.fDamage = 0.f;  // clear damage
+		pApp->scn->pace->Reset();  //
 	}else
 		dynamics.fDamage = dmgLastCheck;
 
 	//  engine, wheels
 	dynamics.engine.SetInitialConditions();
-	for (int w=0; w < 4; ++w)
+	for (int w=0; w < numWheels; ++w)
 	{
 		MATHVECTOR<Dbl,3> zero(0,0,0);
 		dynamics.wheel[w].SetAngularVelocity(0);
 		//dynamics.wheel_velocity[w] = zero;
 	}
-	crashdetection.Update(0.f, 0.1f);  //prevent car hit sound
+	//crashdetection.Update(0.f, 0.1f);  //prevent car hit sound
 	dynamics.fHitDmgA = 0.f;
 
 	//dynamics.SynchronizeChassis();

@@ -147,8 +147,7 @@ void CGuiCom::UnfocusLists()
 	WP w = InputManager::getInstance().getKeyFocusWidget();
 	while (w)
 	{
-		//LogO(wg->getTypeName() +" "+ wg->getName());
-		w = w->getParent();
+		//LogO(w->getTypeName() +" "+ w->getName());
 
 		#ifdef SR_EDITOR
 		if (w == (WP)trkList  || w == (WP)app->gui->liSky || w == (WP)app->gui->liTex ||
@@ -161,7 +160,9 @@ void CGuiCom::UnfocusLists()
 		{
 			InputManager::getInstance().resetKeyFocusWidget();
 			return;
-	}	}
+		}
+		w = w->getParent();
+	}
 }
 
 TabPtr CGuiCom::FindSubTab(WP tab)
@@ -456,12 +457,13 @@ void CGuiCom::CreateFonts()
 	MyGUI::ResourceManager& mgr = MyGUI::ResourceManager::getInstance();
 	IResource* resource = mgr.findByName("hud.text");  // based on this font
 	ResourceTrueTypeFont* bfont = resource != nullptr ? resource->castType<ResourceTrueTypeFont>(false) : 0;
-	if (!bfont)  LogO("Error !! Can't find font: hud.text");
+	if (!bfont)  LogO("!!Error: Can't find font: hud.text");
 
 	const int cnt = 3;
 	string names[cnt] = {"font.small","font.normal","font.big"};
 	float sizes[cnt] = {26.f, 30.f, 34.f};  // par
 	
+	String inf;
 	for (int i=0; i < cnt; ++i)
 	{
 		//  del old
@@ -471,7 +473,7 @@ void CGuiCom::CreateFonts()
 
 		//  setup font				   // par
 		float size = sizes[i] * (1.f - 1.5f * (GetGuiMargin(2000) - GetGuiMargin(pSet->windowy)));
-		LogO("-- "+name+"  size: "+fToStr(size,1,3));
+		inf += name+"  "+fToStr(size,1,3)+"  ";
 
 		//  create
 	#if 0  //  mygui from svn
@@ -528,4 +530,6 @@ void CGuiCom::CreateFonts()
 		//  add
 		mgr.addResource(font);
 	}
+
+	LogO("-- Font sizes:  "+inf);
 }

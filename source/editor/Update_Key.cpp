@@ -17,9 +17,9 @@
 #include <OgreSceneNode.h>
 #include <OgreRenderTexture.h>
 #include <MyGUI.h>
-#include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
-#include "BulletCollision/CollisionDispatch/btCollisionObject.h"
-#include "BulletDynamics/Dynamics/btRigidBody.h"
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
+#include <BulletDynamics/Dynamics/btRigidBody.h>
 #include "../sdl4ogre/sdlinputwrapper.hpp"
 #include "../sdl4ogre/sdlcursormanager.hpp"
 using namespace MyGUI;
@@ -334,8 +334,9 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 						else		road->ChgAngType(-1);  break;
 			case key(2):  if (alt)	road->ChgAngType(1);  break;
 
-			case key(7):  road->ToggleLoopChk();  break;  
-			case key(8):  road->ToggleOnPipe(ctrl);  break;
+			case key(7):  road->ChgLoopType(shift ? -1 : 1);  break;  
+			case key(8): if (shift)	road->ToggleNotReal();
+						 else		road->ToggleOnPipe(ctrl);  break;
 
 			case key(5):  snap = shift ? 1 :-1;  break;
 			
@@ -584,7 +585,8 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 		case key(O):  gui->GuiShortcut(WND_Track, 2);  return true;  // O Tools
 
 		case key(W):  gui->GuiShortcut(WND_Track, 3);  return true;  // W Game
-		case key(J):  gui->GuiShortcut(WND_Track, 4);  return true;  // J Warnings
+		case key(P):  gui->GuiShortcut(WND_Track, 4);  return true;  // P Pacenotes
+		case key(J):  gui->GuiShortcut(WND_Track, 5);  return true;  // J Warnings
 
 		case key(S):  gui->GuiShortcut(WND_Edit, TAB_Sun);       return true;  // S Sun
 		case key(H):  gui->GuiShortcut(WND_Edit, TAB_Terrain);   return true;  // H Heightmap

@@ -45,57 +45,6 @@ private:
 			}
 	};
 	
-	class DRIFTSCORE
-	{
-		private:
-			float score, thisdriftscore;
-			bool drifting;
-			float max_angle, max_speed;
-			
-		public:
-			DRIFTSCORE()
-			{	Reset();  }
-			void Reset()
-			{
-				score = 0;
-				SetDrifting(false, false);
-			}
-
-			void SetScore(float value)	{	score = value;	}
-			float GetScore() const		{	return score;	}
-
-			void SetDrifting(bool value, bool countit)
-			{
-				if (!value && drifting && countit && thisdriftscore + GetBonusScore() > 5.0)
-				{
-					score += thisdriftscore + GetBonusScore();
-					//std::cout << "Incrementing score: " << score << std::endl;
-				}
-				//else if (!value && drifting) std::cout << "Not scoring: " << countit << ", " << thisdriftscore << std::endl;
-				
-				if (!value)
-				{
-					thisdriftscore = 0;
-					max_angle = 0;  max_speed = 0;
-				}
-				drifting = value;
-			}
-		
-			bool GetDrifting() const			{	return drifting;	}
-			void SetThisDriftScore (float value){	thisdriftscore = value;  }
-			float GetThisDriftScore() const		{	return thisdriftscore;  }
-
-			void SetMaxAngle(float value){	max_angle = value;	}
-			void SetMaxSpeed(float value){	max_speed = value;	}
-			float GetMaxAngle() const	{	return max_angle;	}
-			float GetMaxSpeed() const	{	return max_speed;	}
-			
-			float GetBonusScore() const
-			{
-				return max_speed / 2.0 + max_angle * 40.0 / PI_d + thisdriftscore;
-			}
-	};
-
 	class LAPINFO
 	{
 		private:
@@ -109,7 +58,6 @@ private:
 			double totaltime; // total time of a race (>=1 laps)
 			int num_laps;     // current lap
 			std::string cartype;
-			DRIFTSCORE driftscore;
 
 		public:
 			double time_rewind;  // time from race start (for rewind, goes back when rewinding)
@@ -193,9 +141,6 @@ private:
 			double GetBestLap() const	{	return bestlap.GetTimeInSeconds();	}
 			double GetBestLapRace() const{	return bestlapRace.GetTimeInSeconds();	}
 			int GetCurrentLap() const	{	return num_laps;	}
-
-			const DRIFTSCORE & GetDriftScore() const{	return driftscore;	}
-			DRIFTSCORE& GetDriftScore()				{	return driftscore;	}
 	};
 
 	std::vector <LAPINFO> car;
@@ -220,7 +165,7 @@ public:
 	bool waiting;  // for other players in multi or in champs to close info wnd
 	bool end_sim;  // simulate at end of champ, no input, wnd shown
 
-	bool Load(const std::string & trackrecordspath, float stagingtime, std::ostream & error_output);
+	bool Load(const std::string & trackrecordspath, float stagingtime);
 	///add a car of the given type and return the integer identifier that the track system will use
 	int AddCar(const std::string & cartype) {  car.push_back(LAPINFO(cartype));  return car.size()-1;  }
 
@@ -234,7 +179,7 @@ public:
 
 	void DebugPrint(std::ostream & out)
 	{
-		for (size_t i = 0; i < car.size(); i++)
+		for (size_t i = 0; i < car.size(); ++i)
 		{
 			out << i << ". ";
 			car[i].DebugPrint(out);
@@ -288,46 +233,4 @@ public:
 	int GetPlayerCurrentLap(const int carId) {  return GetCurrentLap(carId);  }
 	int GetCurrentLap(unsigned int index)    {  assert(index<car.size());  return car[index].GetCurrentLap();  }
 
-
-	float GetDriftScore(unsigned int index) const
-	{
-		assert(index<car.size());
-		return car[index].GetDriftScore().GetScore();
-	}
-	
-	float GetThisDriftScore(unsigned int index) const
-	{
-		assert(index<car.size());
-		return car[index].GetDriftScore().GetThisDriftScore() + car[index].GetDriftScore().GetBonusScore();
-	}
-	
-	//  drift score -
-	bool GetIsDrifting(unsigned int index) const
-	{
-		//assert(index<car.size());
-		if (index < car.size())
-			return false;
-		return car[index].GetDriftScore().GetDrifting();
-	}
-	
-	void SetIsDrifting(unsigned int index, bool newdrift, bool countthedrift)
-	{
-		assert(index<car.size());
-		car[index].GetDriftScore().SetDrifting(newdrift, countthedrift);
-	}
-	
-	void IncrementThisDriftScore(unsigned int index, float incrementamount)
-	{
-		assert(index<car.size());
-		car[index].GetDriftScore().SetThisDriftScore(car[index].GetDriftScore().GetThisDriftScore()+incrementamount);
-	}
-	
-	void UpdateMaxDriftAngleSpeed(unsigned int index, float angle, float speed)
-	{
-		assert(index<car.size());
-		if (angle > car[index].GetDriftScore().GetMaxAngle())
-			car[index].GetDriftScore().SetMaxAngle(angle);
-		if (speed > car[index].GetDriftScore().GetMaxSpeed())
-			car[index].GetDriftScore().SetMaxSpeed(speed);
-	}
 };

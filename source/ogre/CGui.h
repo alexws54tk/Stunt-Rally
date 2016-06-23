@@ -8,6 +8,7 @@
 
 #include "../network/networkcallbacks.hpp"
 #include "../oics/ICSInputControlSystem.h"
+#include <boost/thread.hpp>
 
 #include "ChampsXml.h"  // progress..
 #include "ChallengesXml.h"
@@ -38,6 +39,7 @@ public:
 	CHud* hud;  MyGUI::Gui* mGui;  CGuiCom* gcom;
 	
 	CGui(App* ap1);
+	~CGui();
 	//friend class CarModel;
 	
 	typedef std::list <std::string> strlist;
@@ -194,7 +196,7 @@ public:
 	SlV(VolMaster);  SlV(VolHud);
 	SV svVolEngine, svVolTires, svVolSusp, svVolEnv;
 	SV svVolFlSplash, svVolFlCont, svVolCarCrash, svVolCarScrap;
-	Ck ckSndChk, ckSndChkWr;
+	Ck ckSndChk, ckSndChkWr, ckReverb;
 	
 	
 	///  Checks  . . . . . . . . . . . . . . . . . . . .
@@ -210,15 +212,18 @@ public:
 	CK(Arrow);  CK(Beam);
 	CK(Minimap);  void chkMiniUpd(Ck*);
 	Ck ckMiniZoom, ckMiniRot, ckMiniTer, ckMiniBorder;
-	//  cam
+	//  Camera
 	Ck ckCamInfo, ckCamTilt, ckCamLoop;
 	Ck ckCamBnc;  SV svCamBnc;
 	SV svFov, svFovMax, svFovSm;
+	//  Pacenotes
+	Ck ckPaceShow;  SV svPaceDist, svPaceSize, svPaceNext;
+	SV svPaceNear, svPaceAlpha;
+	void slUpd_Pace(SV*);
 	//  Times, opp
-	Ck ckTimes;
-	Ck ckOpponents, ckOppSort;
+	Ck ckTimes, ckOpponents, ckOppSort;
 
-	//  graphs
+	//  Graphs
 	SV svTC_r, svTC_xr;
 	SV svTE_yf, svTE_xfx, svTE_xfy, svTE_xpow;
 	Ck ckTE_Common, ckTE_Reference;  void chkTEupd(Ck*);
@@ -226,7 +231,7 @@ public:
 	//  Hud dbg,other
 	Ck ckFps;  CK(Wireframe);
 	//  profiler
-	Ck ckProfilerTxt, ckBulletDebug, ckBltProfTxt;
+	Ck ckProfilerTxt, ckBulletDebug, ckBltProfTxt, ckSoundInfo;
 	//  car dbg
 	Ck ckCarDbgBars, ckCarDbgTxt, ckCarDbgSurf;
 	Ck ckTireVis;  void chkHudCreate(Ck*);
@@ -248,7 +253,7 @@ public:
 	SV svBloomInt, svBloomOrig;
 	SV svBlurIntens;  // motion blur
 	SV svDofFocus, svDofFar;  // depth of field
-	void slBloom(SV*);
+	void slEffUpd(SV*);
 	//  hdr
 	SV svHDRParam1, svHDRParam2, svHDRParam3;
 	SV svHDRBloomInt, svHDRBloomOrig, svHDRAdaptScale;
@@ -336,8 +341,6 @@ public:
 	CK(RplGhosts);
 	void edRplFind(Ed);  Ogre::String sRplFind;
 
-	void btnRenameOldTrk(WP);
-
 	//  controls bar buttons
 	Btn btRplPl;  void UpdRplPlayBtn();
 	Sl slRplPos;  void slRplPosEv(SL);
@@ -346,6 +349,14 @@ public:
 	void btnRplBackDn(WP,int,int,MyGUI::MouseButton), btnRplBackUp(WP,int,int,MyGUI::MouseButton);
 	void btnRplFwdDn(WP,int,int, MyGUI::MouseButton), btnRplFwdUp(WP,int,int, MyGUI::MouseButton);
 	void msgRplDelete(MyGUI::Message*, MyGUI::MessageBoxStyle);
+
+	//  tools, convert
+	void btnRenameOldTrk(WP), btnConvertAllRpl(WP);
+	bool bConvertRpl;
+	boost::thread mThrConvert;  void ThreadConvert();
+	Txt txtConvert;
+	int iConvCur,iConvAll,iConvFiles, iConvPathCur,iConvPathAll;  // files, dirs
+	boost::uintmax_t totalConv,totalConvCur,totalConvNew;  // size
 	
 
 	//  Game

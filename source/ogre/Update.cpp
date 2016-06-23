@@ -7,8 +7,11 @@
 #include "common/GuiCom.h"
 #include "common/CScene.h"
 #include "common/WaterRTT.h"
+#include "common/data/SceneXml.h"
+#include "common/data/FluidsXml.h"
 #include "FollowCamera.h"
 #include "../road/Road.h"
+#include "../road/PaceNotes.h"
 #include "../vdrift/game.h"
 #include "../vdrift/quickprof.h"
 #include "../paged-geom/PagedGeometry.h"
@@ -54,12 +57,12 @@ void App::UpdThr()
 		double dt = double(gtim.getMicroseconds()) * 0.000001;
 		gtim.reset();
 		
-		if (pSet->multi_thr == 1 && !bLoading)
+		if (pSet->multi_thr == 1 && !bLoading && !mShutDown)
 		{
 			bSimulating = true;
 			bool ret = pGame->OneLoop(dt);
 			if (!ret)
-				mShutDown = true;
+				mShutDown = true;  //ShutDown();
 
 			DoNetworking();
 			bSimulating = false;
@@ -339,7 +342,8 @@ bool App::frameStart(Real time)
 		if (pSet->multi_thr == 0)
 		{
 			ret = pGame->OneLoop(time);
-			if (!ret)  mShutDown = true;
+			if (!ret)
+				ShutDown();
 			updatePoses(time);
 		}
 		
@@ -412,6 +416,18 @@ bool App::frameStart(Real time)
 			//PROFILER.endBlock("g.road");
 		}
 
+		//[]()  pace upd vis  ~ ~ ~
+		if (scn->pace)
+		{	
+			const CarModel* cm = *carModels.begin();
+			Vector3 p = cm->pMainNode->getPosition();
+			float vel = cm->pCar->GetSpeedometer();
+			scn->pace->carVel = vel;
+			scn->pace->rewind = cm->pCar->bRewind;
+			scn->pace->UpdVis(p);
+		}
+		
+
 		//**  bullet bebug draw
 		if (dbgdraw)  {							// DBG_DrawWireframe
 			dbgdraw->setDebugMode(pSet->bltDebug ? 1 /*+(1<<13) 255*/ : 0);
@@ -438,7 +454,8 @@ bool App::frameStart(Real time)
 
 
 		///()  grass sphere pos
-		if (!carModels.empty())
+		bool hasCars = !carModels.empty();
+		if (hasCars)
 		{
 			Real r = 1.7;  r *= r;  //par
 			const Vector3* p = &carModels[0]->posSph[0];
@@ -449,6 +466,27 @@ bool App::frameStart(Real time)
 		{	mFactory->setSharedParameter("posSph0", sh::makeProperty <sh::Vector4>(new sh::Vector4(0,0,500,-1)));
 			mFactory->setSharedParameter("posSph1", sh::makeProperty <sh::Vector4>(new sh::Vector4(0,0,500,-1)));
 		}
+		
+		///~~  fluid fog, send params to shaders
+		if (hasCars  && pSet->game.local_players == 1)
+		{
+			int fi = carModels[0]->iCamFluid;
+			float p = carModels[0]->fCamFl;
+			//? if (fi != idFlOld)  {
+			if (fi >= 0)
+			{	const FluidBox* fb = &scn->sc->fluids[fi];
+				const FluidParams& fp = scn->sc->pFluidsXml->fls[fb->id];
+
+				mFactory->setSharedParameter("fogFluidH", sh::makeProperty <sh::Vector4>(new sh::Vector4(
+					fb->pos.y +p /*+0.5f par? ofsH..*/, 1.f / fp.fog.dens, fp.fog.densH +p*0.5f, 0)));
+
+				mFactory->setSharedParameter("fogFluidClr", sh::makeProperty <sh::Vector4>(new sh::Vector4(
+					fp.fog.r, fp.fog.g, fp.fog.b, fp.fog.a)));
+			}else
+				mFactory->setSharedParameter("fogFluidH", sh::makeProperty <sh::Vector4>(new sh::Vector4(
+					-900.f, 1.f/17.f, 0.15f, 0)));
+
+		}// no else, set in setFog default
 
 
 		//  Signal loading finished to the peers

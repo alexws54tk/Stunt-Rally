@@ -5,7 +5,8 @@
 #include "tinyxml2.h"
 #include <set>
 #include "../vdrift/pathmanager.h"
-
+#include "../../ReplayTrk.h"  // check
+#include "../../CHud.h"  // StrTime
 using namespace std;
 using namespace tinyxml2;
 using Ogre::uchar;
@@ -222,9 +223,26 @@ bool TracksXml::LoadIni(string file, bool check)
 		{
 			const TrackInfo& ti = trks[i];
 			const string& s = ti.name;
-			if (!ti.test && !ti.testC)
-			if (!PATHMANAGER::FileExists(PATHMANAGER::TrkGhosts()+"/"+ s + ".gho"))
-				LogO("! Missing trk gho for: " + s);
+			for (int r=0; r < 2; ++r)
+			{
+				string sRev = r==1 ? "_r" : "";
+				string file = PATHMANAGER::TrkGhosts()+"/"+ s + sRev + ".gho";
+				if (!ti.test && !ti.testC)
+				if (!PATHMANAGER::FileExists(file))
+				{	if (r==1)	LogO("!Rev Missing trk gho for: " + s);
+					else		LogO("! Missing trk gho for: " + s);
+				}else
+				{	//  check time  can take few sec
+					TrackGhost gho;  gho.LoadFile(file, false);
+					float tgh = gho.GetTimeLength();
+					float ti = times[s]*1.02f, td = tgh - ti;
+					if (fabs(td) > 20.f)
+					{	ss.str("");
+						ss << "time diff big: " << setw(19) << s+sRev;
+						ss << " time "+StrTime(tgh)+" trk "+StrTime(ti)+" d "+fToStr(td,0,3);
+						LogO(ss.str());
+				}	}
+			}
 		}
 		LogO("");
 		
@@ -320,4 +338,91 @@ bool CarsXml::LoadXml(string file)
 		eColor = eColor->NextSiblingElement("color");
 	}
 	return true;
+}
+
+
+
+//  Load car colors.ini
+//--------------------------------------------------------------------------------------------------------------------------------------
+bool ColorsXml::LoadIni(string file)
+{
+	v.clear();
+
+	char s[256];
+
+	ifstream fs(file.c_str());
+	if (fs.fail())  return false;
+	
+	while (fs.good())
+	{
+		fs.getline(s,254);
+		
+		if (strlen(s) > 0 && s[0] != '#' && s[0] != '/' && s[0] != ' ')  //  comment
+		{
+			string t = s;  //  params
+			     if (t.substr(0,6) == "perRow")   perRow =  s2i(t.substr(6));
+			else if (t.substr(0,7) == "imgSize")  imgSize = s2i(t.substr(7));
+			else
+			//  color, starting with digit
+			if (s[0] >= '0' && s[0] <= '9')
+			{
+				CarColor c;
+				sscanf(s, "%f %f %f %f %f",
+					&c.hue, &c.sat, &c.val, &c.gloss, &c.refl);
+
+				v.push_back(c);
+			}
+	}	}
+	return true;
+}
+
+
+///  Load  reverbs.xml
+//-------------------------------------------------------------------------------------
+
+bool ReverbsXml::LoadXml(string file)
+{
+	XMLDocument doc;
+	XMLError e = doc.LoadFile(file.c_str());
+	if (e != XML_SUCCESS)  return false;
+
+	XMLElement* root = doc.RootElement();
+	if (!root)  return false;
+
+	//  clear
+	revs.clear();  revmap.clear();
+
+
+	//  base
+	XMLElement* b = root->FirstChildElement("base");
+	if (b)
+		GetParams(b, base);
+
+	///  revs
+	int i=1;  //0 = none
+	XMLElement* n = root->FirstChildElement("rev");
+	while (n)
+	{
+		ReverbSet r;
+		GetParams(n, r);
+
+		revs.push_back(r);
+		revmap[r.name] = i++;
+		n = n->NextSiblingElement("rev");
+	}
+	return true;
+}
+
+void ReverbsXml::GetParams(XMLElement* e, ReverbSet& r)
+{
+	const char* a;
+	a = e->Attribute("name");		if (a)  r.name = string(a);
+	a = e->Attribute("descr");		if (a)  r.descr = string(a);
+
+	a = e->Attribute("normal");		if (a)  r.normal = string(a);
+	a = e->Attribute("cave");		if (a)  r.cave = string(a);
+	a = e->Attribute("cavebig");	if (a)  r.cavebig = string(a);
+	a = e->Attribute("pipe");		if (a)  r.pipe = string(a);
+	a = e->Attribute("pipebig");	if (a)  r.pipebig = string(a);
+	a = e->Attribute("influid");	if (a)  r.influid = string(a);
 }

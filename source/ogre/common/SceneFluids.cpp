@@ -10,14 +10,14 @@
 #ifdef SR_EDITOR
 	#include "../../editor/CApp.h"
 	#include "../../editor/settings.h"
-	#include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
+	#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
 #else
 	#include "../CGame.h"
 	#include "../../vdrift/game.h"
 	//#include "../../vdrift/settings.h"
 #endif
-#include "BulletCollision/CollisionDispatch/btCollisionObject.h"
-#include "BulletCollision/CollisionShapes/btBoxShape.h"
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
 #include <OgreManualObject.h>
 #include <OgreMeshManager.h>
 #include <OgreMaterialManager.h>
@@ -42,7 +42,7 @@ void CScene::CreateFluids()
 	if (!mWaterRTT->mNdFluidsRoot)
 		mWaterRTT->mNdFluidsRoot = app->mSceneMgr->getRootSceneNode()->createChildSceneNode("FluidsRootNode");
 			
-	for (int i=0; i < sc->fluids.size(); i++)
+	for (int i=0; i < sc->fluids.size(); ++i)
 	{
 		FluidBox& fb = sc->fluids[i];
 		//  plane
@@ -76,7 +76,7 @@ void CScene::CreateFluids()
 
 void CScene::CreateBltFluids()
 {
-	for (int i=0; i < sc->fluids.size(); i++)
+	for (int i=0; i < sc->fluids.size(); ++i)
 	{
 		FluidBox& fb = sc->fluids[i];
 		const FluidParams& fp = sc->pFluidsXml->fls[fb.id];
@@ -159,7 +159,7 @@ void App::UpdMtrWaterDepth()
 
 
 //  Water rtt, setup and recreate
-void CScene::UpdateWaterRTT(Ogre::Camera* cam)
+void CScene::UpdateWaterRTT(Camera* cam)
 {
 	mWaterRTT->setRTTSize(ciShadowSizesA[app->pSet->water_rttsize]);
 	mWaterRTT->setReflect(app->pSet->water_reflect);

@@ -19,36 +19,40 @@
 #include "cardefs.h"
 #include "collision_contact.h"
 #include "../btOgre/BtOgreDebug.h"
+#include "btBulletCollisionCommon.h"
+#include "btBulletDynamicsCommon.h"
 
 class MODEL;  class CONFIGFILE;  class COLLISION_WORLD;  class FluidBox;  class GAME;
 
 
 class CARDYNAMICS : public btActionInterface
 {
-friend class PERFORMANCE_TESTING;
 public:
 
 	class SETTINGS* pSet;
 	class Scene* pScene;  // for fluids
 	class FluidsXml* pFluids;  // to get fluid params
 	std::vector<float> inputsCopy;  // just for dbg info txt
+
+	int numWheels;  // copy from CAR
+	void SetNumWheels(int n);
 	
 	CARDYNAMICS();
 	~CARDYNAMICS();
 	
 	GAME* pGame;
-	bool Load(GAME* game, CONFIGFILE & c, std::ostream & error_output);
+	bool Load(GAME* game, CONFIGFILE & c);
 
 	void Init(
 		class SETTINGS* pSet1, class Scene* pScene1, class FluidsXml* pFluids1,
 		COLLISION_WORLD & world,
-		const MODEL & chassisModel, const MODEL & wheelModelFront, const MODEL & wheelModelRear,
 		const MATHVECTOR<Dbl,3> & position,
 		const QUATERNION<Dbl> & orientation);
+	void RemoveBlt();
 
 // bullet interface
-	virtual void updateAction(btCollisionWorld * collisionWorld, btScalar dt);
-	virtual void debugDraw(btIDebugDraw * debugDrawer)	{	}
+	virtual void updateAction(btCollisionWorld* collisionWorld, btScalar dt);
+	virtual void debugDraw(btIDebugDraw* debugDrawer)	{	}
 
 // graphics interface, interpolated
 	void Update(), UpdateBuoyancy(); // update interpolated chassis state
@@ -68,8 +72,7 @@ public:
 	COLLISION_CONTACT & GetWheelContact(WHEEL_POSITION wp)				{	return wheel_contact[wp];	}
 
 /// set from terrain blendmap
-	int iWhOnRoad[4];  //, whSU_Type[4];
-	int whTerMtr[4], whRoadMtr[4];
+	std::vector<int> iWhOnRoad, whTerMtr, whRoadMtr;
 
 // chassis
 	float GetMass() const;
@@ -134,11 +137,12 @@ public:
 	Dbl GetAerodynamicDownforceCoefficient() const;
 	Dbl GetAeordynamicDragCoefficient() const;
 
-	MATHVECTOR<Dbl,3> GetLastBodyForce() const	{	return lastbodyforce;	}
 	Dbl GetFeedback() const	{	return feedback;	}
 
 	// print debug info to the given ostream.  set p1, p2, etc if debug info part 1, and/or part 2, etc is desired
 	void DebugPrint(std::ostream & out, bool p1, bool p2, bool p3, bool p4);
+	// common tool for reading .car tags
+	static void GetWPosStr(int axle, int numWheels, WHEEL_POSITION& wl, WHEEL_POSITION& wr, std::string& pos);
 
 public:
 	///  camera bounce
@@ -146,9 +150,9 @@ public:
 	MATHVECTOR<Dbl,3> cam_force;
 
 	///  buoyancy
-	float whH[4];  // wheel submerge 0..1
-	int whP[4];  // fluid particles id
-	float whDmg[4];  // damage from fluid
+	std::vector<float> whH;  // wheel submerge 0..1
+	std::vector<int> whP;  // fluid particles id
+	std::vector<float> whDmg;  // damage from fluid
 	struct Polyhedron* poly;
 	float body_mass;  btVector3 body_inertia;
 
@@ -159,10 +163,14 @@ public:
 	// manual flip over, rocket boost
 	float doFlip, doBoost, boostFuel,boostFuelStart, boostVal, fBoostFov;
 
-	std::list<FluidBox*> inFluids,inFluidsWh[4];  /// list of fluids this car is in (if any)
+	std::list<FluidBox*> inFluids;  /// list of fluids this car is in (if any)
+	std::vector<std::list<FluidBox*> > inFluidsWh;
+	
 	Ogre::Vector3 vHitPos,vHitNorm;  // world hit data
 	Ogre::Vector3 vHitCarN,vHitDmgN;  float fHitDmgA;  // damage factors
-	float fHitTime, fParIntens,fParVel, fHitForce,fHitForce2,fHitForce3,fCarScrap,fCarScreech;
+	float fHitTime, fParIntens,fParVel, fHitForce,
+		fHitForce2,fHitForce3, //dbg info only
+		fCarScrap,fCarScreech;
 	btVector3 velPrev;
 	Dbl time;  // for wind only
 	
@@ -175,7 +183,7 @@ public:
 	void SimulateSpaceship(Dbl dt), SimulateSphere(Dbl dt);
 	std::string sHov;
 
-	///  -- sim params (from .car)
+	///  -- spaceship sim params (from .car)
 	struct HoverPar
 	{
 		float hAbove, hRayLen;
@@ -190,10 +198,16 @@ public:
 		void Default();
 	} hov;
 
+// bullet to delete  -----------------
+	btAlignedObjectArray<btCollisionShape*> shapes;
+	btAlignedObjectArray<btActionInterface*> actions;
+	btAlignedObjectArray<btTypedConstraint*> constraints;
+	btAlignedObjectArray<btRigidBody*> rigids;
+
 // chassis state  -----------------
 	RIGIDBODY body;
 	MATHVECTOR<Dbl,3> center_of_mass;
-	COLLISION_WORLD * world;
+	COLLISION_WORLD* world;
 	btRigidBody *chassis, *whTrigs;
 	
 // driveline state  -----------------
@@ -222,7 +236,6 @@ public:
 	std::vector <COLLISION_CONTACT> wheel_contact;
 	
 	std::vector <CARSUSPENSION> suspension;
-	//std::vector <CARTIRE*> tire;  // changed on contact, from surface
 	std::vector <CARAERO> aerodynamics;
 
 	std::list <std::pair <Dbl, MATHVECTOR<Dbl,3> > > mass_only_particles;
@@ -230,8 +243,6 @@ public:
 	Dbl feedback, maxangle, flip_mul;
 	Dbl ang_damp;  Dbl rot_coef[4];  /// new
 	
-	MATHVECTOR<Dbl,3> lastbodyforce;  //< held so external classes can extract it for things such as applying physics to camera mounts
-
 // chassis, cardynamics
 	MATHVECTOR<Dbl,3> GetDownVector() const;
 

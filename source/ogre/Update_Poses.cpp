@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "../vdrift/par.h"
 #include "common/Def_Str.h"
+#include "common/Axes.h"
 #include "CGame.h"
 #include "CHud.h"
 #include "CGui.h"
@@ -13,6 +14,7 @@
 #include "../vdrift/dbl.h"
 #include "../network/gameclient.hpp"
 #include "../shiny/Main/Factory.hpp"
+#include "../sound/SoundMgr.h"
 #include "common/Slider.h"
 #include "SplitScreen.h"
 #include <OgreCamera.h>
@@ -71,7 +73,7 @@ void App::newPoses(float time)  // time only for camera update
 
 				//  wheels
 				//dynamics.SetSteering(state.steer, pGame->GetSteerRange());  //peers can have other game settins..
-				for (int w=0; w < 4; ++w)
+				for (int w=0; w < carM->numWheels; ++w)
 				{
 					MATHVECTOR<float,3> whP = carM->whPos[w];
 					whP[2] += 0.05f;  // up
@@ -87,19 +89,17 @@ void App::newPoses(float time)  // time only for camera update
 				}
 			}else  ///>>  ghost
 			{
-				ReplayFrame gf;
-				bool ok = ghplay.GetFrame(rewTime, &gf, 0);
-
-				pi.FromRpl(&gf);
+				ReplayFrame2 gf;
+				float ti = std::min((float)rewTime, ghplay.GetTimeLength());
+				bool ok = ghplay.GetFrame(ti, &gf, 0);
+				if (ok)
+					pi.FromRpl2(&gf, 0);
 
 				if (carM->vtype == V_Sphere)
 				{	//  weird fix, mini rot
 					pi.carY = Vector3::UNIT_Y;
 					pi.hov_roll = -pi.hov_roll;
 				}
-
-				for (int w=0; w < 4; ++w)
-					pi.whR[w] = replay.header.whR[c][w]; //
 			}
 		}
 		else  ///>>  replay
@@ -108,14 +108,18 @@ void App::newPoses(float time)  // time only for camera update
 			#ifdef DEBUG
 			assert(c < frm.size());
 			#endif
-			ReplayFrame& rf = frm[c];  // frm also used in car.cpp for sounds
-			bool ok = replay.GetFrame(rplTime, &rf, c);
-			if (!ok)  pGame->timer.RestartReplay(0);  //at end
-
-			pi.FromRpl(&rf);
-
-			for (int w=0; w < 4; ++w)
-				pi.whR[w] = replay.header.whR[c][w]; //
+			ReplayFrame2& rf = frm[c];  // frm also used in car.cpp for sounds
+			if (c < replay.header.numPlayers)
+			{
+				bool ok = replay.GetFrame(rplTime, &rf, c);
+				if (ok)
+				{	pi.FromRpl2(&rf, &pCar->dynamics);
+					pCar->SetPosition(rf.pos, rf.rot);  // for objs hit
+					carM->trackPercent = rf.percent /255.f*100.f;
+				}else
+				{	carM->fCam->First();
+					pGame->timer.RestartReplay(0);  //at end
+			}	}
 		}
 		else  ///>>  sim, game  -  get data from vdrift
 		if (pCar)
@@ -169,17 +173,16 @@ void App::newPoses(float time)  // time only for camera update
 		
 		//<<  record  save data
 		///-----------------------------------------------------------------------
-		if (pSet->rpl_rec && !pGame->pause && !bGhost && pCar && c < 4)
+		if (pSet->rpl_rec && !bRplPlay && !pGame->pause && !bGhost && pCar)
 		{
-			//static int ii = 0;
-			//if (ii++ >= 0)	// 1 half game framerate
-			//{	ii = 0;
+			if (iRplSkip++ >= 1)  // 1 half game framerate
+			{	iRplSkip = 0;
 
-				ReplayFrame fr;
+				ReplayFrame2 fr;
 				fr.time = rplTime;
-				fr.percent = carM->trackPercent;
+				fr.percent = carM->trackPercent /100.f*255.f;
 
-				fr.FromCar(pCar);
+				fr.FromCar(pCar, replay.GetLastHitTime(c));
 				
 				replay.AddFrame(fr, c);  // rec replay
 				if (c==0)  /// rec ghost lap
@@ -188,16 +191,16 @@ void App::newPoses(float time)  // time only for camera update
 					ghost.AddFrame(fr, 0);
 				}
 				
-				if (gui->valRplName2)  // recorded info ..not here, in update
+				//  recorded info ..in update
 				{
-					int size = replay.GetNumFrames() * sizeof(ReplayFrame);
+					int size = replay.GetNumFrames() * 232;  //par approx  sizeof(ReplayFrame);
 					std::string s = fToStr( float(size)/1000000.f, 2,5);
-					String ss = String( TR("#{RplRecTime}: ")) + CHud::StrTime(replay.GetTimeLength()) + TR("   #{RplSize}: ") + s + TR(" #{UnitMB}");
+					String ss = String( TR("#{RplRecTime}: ")) + StrTime(replay.GetTimeLength()) + TR("   #{RplSize}: ") + s + TR(" #{UnitMB}");
 					gui->valRplName2->setCaption(ss);
 				}
-			//}
+			}
 		}
-		if (bRplPlay && gui->valRplName2)  gui->valRplName2->setCaption("");
+		if (bRplPlay)  gui->valRplName2->setCaption("");
 		///-----------------------------------------------------------------------
 		
 
@@ -299,9 +302,9 @@ void App::newPoses(float time)  // time only for camera update
 						
 						if (!chs)
 						{	if (newbest)
-								pGame->snd_lapbest.Play();  //)
+								pGame->snd_lapbest->start();  //)
 							else
-								pGame->snd_lap.Play();  //)
+								pGame->snd_lap->start();  //)
 						}
 						ghost.Clear();
 						
@@ -331,7 +334,7 @@ void App::newPoses(float time)  // time only for camera update
 									if (pSet->game.local_players > 1)
 									{
 										int n = std::min(2, std::max(0, 3 - carIdWin));
-										pGame->snd_win[n].Play();  //)
+										pGame->snd_win[n]->start();  //)
 									}
 									carM->iWonPlace = carIdWin++;
 								}
@@ -380,7 +383,7 @@ void App::newPoses(float time)  // time only for camera update
 								carM->updTimes = true;
 	
 								if (pSet->snd_chk && locar)
-									pGame->snd_chk.Play();  //)
+									pGame->snd_chk->start();  //)
 							}
 							else
 							if (carM->iInChk != carM->iCurChk &&
@@ -392,7 +395,7 @@ void App::newPoses(float time)  // time only for camera update
 								{	carM->iInWrChk = carM->iInChk;
 									
 									if (pSet->snd_chkwr && locar)
-										pGame->snd_chkwr.Play();  //)
+										pGame->snd_chkwr->start();  //)
 							}	}
 							break;
 						}
@@ -409,6 +412,14 @@ void App::newPoses(float time)  // time only for camera update
 			if (carM->fCam)
 				carM->fCam->update(time, pi, &carPoses[qn][c], &pGame->collision, !bRplPlay && pSet->cam_bounce);
 			iCurPoses[c] = qn;  // atomic, set new index in queue
+			
+			///))  upd sound camera
+			if (c == 0 && pGame->snd)
+			{
+				Vector3 x,y,z;
+				carPoses[qn][c].camRot.ToAxes(x,y,z);
+				pGame->snd->setCamera(carPoses[qn][c].camPos, -z, y, Vector3::ZERO);
+			}
 		}
 	}
 	PROFILER.endBlock(".newPos ");
@@ -437,14 +448,15 @@ void App::updatePoses(float time)
 		//  hide when empty or near car
 		bool bGhostCar = carM->eType == (isGhost2nd ? CarModel::CT_GHOST2 : CarModel::CT_GHOST),  // show only actual
 			bGhTrkVis = carM->isGhostTrk() && ghtrk.GetTimeLength()>0 && pSet->rpl_trackghost,
-			bGhostVis = ghplay.GetNumFrames()>0 && pSet->rpl_ghost;
+			bGhostVis = ghplay.GetNumFrames()>0 && pSet->rpl_ghost,
+			bGhostEnd = pGame->timer.GetPlayerTime(0) > ghplay.GetTimeLength();
 		if (bGhostCar)  cgh = c;
 
 		if (carM->isGhost())  // for all
 		{
 			bool loading = iLoad1stFrames >= 0;  // show during load ?..
 			bool curVisible = carM->mbVisible;
-			bool newVisible = bGhostVis && bGhostCar || bGhTrkVis;
+			bool newVisible = bGhostVis && bGhostCar /**/&& !bGhostEnd/**/ || bGhTrkVis;
 			
 			if (loading)
 				carM->setVisible(true);  //!carM->isGhost());
@@ -474,10 +486,11 @@ void App::updatePoses(float time)
 		int q = iCurPoses[c];
 		int cc = (c + iRplCarOfs) % carModels.size();  // replay offset, camera from other car
 		int qq = iCurPoses[cc];
+		PosInfo& pi = carPoses[q][c], &pic = carPoses[qq][cc];
 		carM->Update(carPoses[q][c], carPoses[qq][cc], time);
 		
 
-		//  nick text pos upd
+		//  nick text pos upd  3d to 2d
 		if (carM->pNickTxt && carM->pMainNode)
 		{
 			Camera* cam = playerCar->fCam->mCamera;  //above car 1m
@@ -490,16 +503,15 @@ void App::updatePoses(float time)
 	}
 	
 	///  Replay info
-	if (bRplPlay && pGame->cars.size() > 0)
+	if (bRplPlay && !pGame->cars.empty())
 	{
 		double pos = pGame->timer.GetPlayerTime(0);
 		float len = replay.GetTimeLength();
-		if (gui->valRplPerc)  gui->valRplPerc->setCaption(fToStr(pos/len*100.f, 1,4)+" %");
-		if (gui->valRplCur)  gui->valRplCur->setCaption(CHud::StrTime(pos));
-		if (gui->valRplLen)  gui->valRplLen->setCaption(CHud::StrTime(len));
+		gui->valRplPerc->setCaption(fToStr(pos/len*100.f, 1,4)+" %");
+		gui->valRplCur->setCaption(StrTime(pos));
+		gui->valRplLen->setCaption(StrTime(len));
 
-		if (gui->slRplPos)
-		{	float v = pos/len;  gui->slRplPos->setValue(v);  }
+		float v = pos/len;  gui->slRplPos->setValue(v);
 	}	
 	
 	

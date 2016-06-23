@@ -41,7 +41,7 @@ void CarModel::setVisible(bool vis)
 	pMainNode->setVisible(vis);
 	if (brakes)
 		brakes->setVisible(bBraking && vis);
-	for (int w=0; w < 4; ++w)
+	for (int w=0; w < numWheels; ++w)
 		ndWh[w]->setVisible(vis);
 
 	UpdParsTrails(vis);
@@ -77,11 +77,12 @@ void CarModel::UpdNextCheck()
 	p.y -= gPar.chkBeamSy;  // lower
 	ndNextChk->setPosition(p);
 	ndNextChk->setScale(gPar.chkBeamSx, gPar.chkBeamSy, gPar.chkBeamSx);
-	ndNextChk->setVisible(pSet->check_beam);
+	ndNextChk->setVisible(pSet->check_beam && !pApp->bHideHudBeam);
 }
 void CarModel::ShowNextChk(bool visible)
 {
-	if (ndNextChk)  ndNextChk->setVisible(visible);
+	if (ndNextChk)
+		ndNextChk->setVisible(visible && !pApp->bHideHudBeam);
 }
 
 
@@ -189,14 +190,14 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 
 	//  stop/resume par sys
 	float fa = pGame->pause ? 0.f : 1.f;
-	for (w=0; w < 4; ++w)
+	for (w=0; w < numWheels; ++w)
 	{
 		for (i=0; i < PAR_ALL; ++i)
 			if (par[i][w])  par[i][w]->setSpeedFactor(fa);
-		if (w < 2 && parBoost[w])  parBoost[w]->setSpeedFactor(fa);
+		if (w < PAR_BOOST && parBoost[w])  parBoost[w]->setSpeedFactor(fa);
 		if (parHit)  parHit->setSpeedFactor(fa);
 	}
-	for (w=0; w < 8; ++w)
+	for (w=0; w < PAR_THRUST*2; ++w)
 		if (parThrust[w])  parThrust[w]->setSpeedFactor(fa);
 
 
@@ -229,7 +230,35 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 
 	//  set camera view
 	if (fCam)
-		fCam->Apply(posInfoCam);
+	{	fCam->Apply(posInfoCam);
+		
+		///~~  camera in fluid fog, detect and compute
+		iCamFluid = -1;  fCamFl = 0.f;  // none
+		const size_t sf = sc->fluids.size();
+		if (sf > 0  && pSet->game.local_players == 1)
+		{
+			const Vector3& p = posInfo.camPos;
+			const float r = 0.2f;  //par, near cam?
+			
+			//  check if any fluid box overlaps camera pos sphere
+			bool srch = true;  size_t f = 0;
+			while (srch && f < sf)
+			{
+				const FluidBox& fb = sc->fluids[f];
+				const Vector3& fp = fb.pos;
+				Vector3 fs = fb.size;  fs.x *= 0.5f;  fs.z *= 0.5f;
+				
+				bool inFl =  //  p +r   -fs fp +fs  -r p
+					p.y +r > fp.y - fs.y && p.y -r < fp.y &&
+					p.x +r > fp.x - fs.x && p.x -r < fp.x + fs.x &&
+					p.z +r > fp.z - fs.z && p.z -r < fp.z + fs.z;
+				
+				if (inFl)  // 1st only
+				{	iCamFluid = f;  fCamFl = std::min(1.f, std::max(0.f, fp.y - p.y)) * 3.f;
+					srch = false;  }
+				++f;
+			}
+	}	}
 
 	//  upd rotY for minimap
 	if (vtype == V_Sphere)
@@ -254,7 +283,7 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 	bool changed = false;
 	if (terrain)
 	{
-		Ogre::Vector3 carPos = pMainNode->getPosition();
+		Vector3 carPos = pMainNode->getPosition();
 		float terrainHeight = terrain->getHeightAtWorldPosition(carPos);
 		float diff = std::abs(carPos.y - terrainHeight);
 		if (diff > MAX_TERRAIN_DIST)
@@ -277,7 +306,7 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 	if (pSet->particles && pCar)
 	{
 		//  boost
-		for (i=0; i < 2; i++)  if (parBoost[i])
+		for (i=0; i < PAR_BOOST; ++i)  if (parBoost[i])
 		{
 			/// <><> damage reduce
 			float dmg = pCar->dynamics.fDamage >= 80.f ? 0.f : std::max(0.f, 1.4f - pCar->dynamics.fDamage*0.01f);
@@ -286,7 +315,7 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 			pe->setEmissionRate(emitB);
 		}
 		//  spaceship thrusters
-		for (i=0; i < 8; i++)  if (parThrust[i])
+		for (i=0; i < PAR_THRUST*2; ++i)  if (parThrust[i])
 		{
 			float dmg = 1.f - 0.5f * pCar->dynamics.fDamage*0.01f;
 			float emitT = posInfo.hov_throttle * 60.f * dmg;  // par
@@ -312,9 +341,9 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 	//  wheels  ------------------------------------------------------------------------
 	const float trlH = sc->ter ? 0.90f : 0.76f;  // vdr needs up (ter bumps), no ter  ..get from wheel contact ?rpl
 
-	for (w=0; w < 4; ++w)
+	for (w=0; w < numWheels; ++w)
 	{
-		float wR = posInfo.whR[w];
+		float wR = whRadius[w];
 		#ifdef CAM_TILT_DBG  // cam debug test only
 			if (fCam)
 				ndWh[w]->setPosition(fCam->posHit[w]);
@@ -459,18 +488,18 @@ void CarModel::Update(PosInfo& posInfo, PosInfo& posInfoCam, float time)
 	UpdWhTerMtr();
 	
 	//  update brake meshes orientation
-	for (w=0; w<4; ++w)
+	for (w=0; w < numWheels; ++w)
 	{
 		if (ndBrake[w])
 		{
 			ndBrake[w]->_setDerivedOrientation( pMainNode->getOrientation() );
 			
 			// this transformation code is just so the brake mesh can have the same alignment as the wheel mesh
-			ndBrake[w]->yaw(Ogre::Degree(-90), Node::TS_LOCAL);
+			ndBrake[w]->yaw(Degree(-90), Node::TS_LOCAL);
 			if (w%2 == 1)
 				ndBrake[w]->setScale(-1, 1, 1);
 				
-			ndBrake[w]->pitch(Ogre::Degree(180), Node::TS_LOCAL);
+			ndBrake[w]->pitch(Degree(180), Node::TS_LOCAL);
 			
 			if (w < 2)  // turn only front wheels
 				ndBrake[w]->yaw(-Degree(posInfo.whSteerAng[w]));
@@ -488,7 +517,7 @@ void CarModel::First()
 	if (fCam)  fCam->First();
 	iFirst = 0;
 
-	for (int w=0; w < 4; ++w)  // hide trails
+	for (int w=0; w < numWheels; ++w)  // hide trails
 	if (whTrail[w])
 		whTrail[w]->setInitialWidth(0, 0.f);
 }
@@ -505,18 +534,19 @@ void CarModel::UpdateKeys()
 
 	///  change Cameras  ---------------------------------
 	//if (!pApp->isFocGui)
-	if (pCar->iCamNext != 0 && iCamNextOld == 0)
+	int iC = pCar->iCamNext;  // iRplCarOfs..
+	if (iC != 0 && iCamNextOld == 0)
 	{
 		//  with ctrl - change current camera car index  (mouse move camera for many players)
 		if (pApp->ctrl && iIndex == 0)
-			pApp->iCurCam = (pApp->iCurCam + pCar->iCamNext + pSet->game.local_players) % pSet->game.local_players;
+			pApp->iCurCam = (pApp->iCurCam + iC + pSet->game.local_players) % pSet->game.local_players;
 		else
 		{
 			int visMask = 255;
 			pApp->roadUpdTm = 1.f;
 
 			if (fCam)
-			{	fCam->Next(pCar->iCamNext < 0, pApp->shift);
+			{	fCam->Next(iC < 0, pApp->shift);
 				pApp->carsCamNum[iIndex] = fCam->miCurrent +1;  // save for pSet
 				visMask = fCam->ca->mHideGlass ? RV_MaskAll-RV_CarGlass : RV_MaskAll;
 				for (std::list<Viewport*>::iterator it = pApp->mSplitMgr->mViewports.begin();
@@ -525,7 +555,7 @@ void CarModel::UpdateKeys()
 			}
 		}
 	}
-	iCamNextOld = pCar->iCamNext;
+	iCamNextOld = iC;
 }
 
 
@@ -582,17 +612,17 @@ void CarModel::UpdateBraking()
 void CarModel::UpdParsTrails(bool visible)
 {
 	bool vis = visible && pSet->particles;
-	for (int w=0; w < 4; ++w)
+	for (int w=0; w < numWheels; ++w)
 	{
-		Ogre::uint8 grp = RQG_CarTrails;  //9=road  after glass
-		if (w < 2 && parBoost[w]) {  parBoost[w]->setVisible(vis);  parBoost[w]->setRenderQueueGroup(grp);  }
+		uint8 grp = RQG_CarTrails;  //9=road  after glass
+		if (w < PAR_BOOST && parBoost[w]) {  parBoost[w]->setVisible(vis);  parBoost[w]->setRenderQueueGroup(grp);  }
 		if (whTrail[w]){  whTrail[w]->setVisible(visible && pSet->trails);  whTrail[w]->setRenderQueueGroup(grp);  }
 		grp = RQG_CarParticles;
 		for (int p=0; p < PAR_ALL; ++p)
 			if (par[p][w]){  par[p][w]->setVisible(vis);  par[p][w]->setRenderQueueGroup(grp);  }
 		if (parHit && w==0)	{  parHit->setVisible(vis);  parHit->setRenderQueueGroup(grp);  }
 	}
-	for (int w=0; w < 8; ++w)
+	for (int w=0; w < PAR_THRUST*2; ++w)
 		if (parThrust[w]) {  parThrust[w]->setVisible(vis);  parThrust[w]->setRenderQueueGroup(RQG_CarTrails);  }
 }
 
@@ -606,7 +636,7 @@ void CarModel::UpdWhTerMtr()
 	//Real tws = sc->td.fTerWorldSize;
 
 	txtDbgSurf = "";
-	for (int i=0; i<4; ++i)
+	for (int i=0; i < pCar->numWheels; ++i)
 	{
 		//Vector3 w = ndWh[i]->getPosition();
 		//int mx = (w.x + 0.5*tws)/tws*t, my = (-w.z + 0.5*tws)/tws*t;

@@ -20,9 +20,8 @@
 using namespace std;
 
 
-TRACK::TRACK(ostream & info, ostream & error) 
+TRACK::TRACK() 
 	:pGame(0),
-	info_output(info), error_output(error),
 	texture_size("large"),
 	loaded(false), asphalt(false),
 	sDefaultTire("gravel")
@@ -45,7 +44,7 @@ bool TRACK::DeferredLoad(
 	Clear();
 
 	texture_size = texsize;
-	info_output << "Loading track from path: " << trackpath << endl;
+	LogO("-=- Loading track from path: "+trackpath);
 
 	//load roads
 	if (!LoadRoads(trackpath, reverse))
@@ -98,24 +97,6 @@ void TRACK::Clear()
 	loaded = false;
 }
 
-bool TRACK::CreateRacingLines()
-{
-	K1999 k1999data;
-	int n = 0;
-	for (list <ROADSTRIP>::iterator i = roads.begin(); i != roads.end(); ++i,++n)
-	{
-		if (k1999data.LoadData(&(*i)))
-		{
-			k1999data.CalcRaceLine();
-			k1999data.UpdateRoadStrip(&(*i));
-		}
-		//else error_output << "Couldn't create racing line for roadstrip " << n << endl;
-		
-		//i->CreateRacingLine(racingline_node, racingline_texture, error_output);
-	}
-	return true;
-}
-
 bool TRACK::BeginObjectLoad(
 	const string & trackpath,
 	int anisotropy,
@@ -123,7 +104,7 @@ bool TRACK::BeginObjectLoad(
 	bool doagressivecombining)
 {
 	objload.reset(new OBJECTLOADER(trackpath, anisotropy, dynamicshadowsenabled,
-		info_output, error_output, true, doagressivecombining));
+		true, doagressivecombining));
 
 	if (!objload->BeginObjectLoad())
 		return false;
@@ -163,10 +144,10 @@ bool TRACK::LoadRoads(const string & trackpath, bool reverse)
 	int numroads=0;
 	trackfile >> numroads;
 
-	for (int i = 0; i < numroads && trackfile; i++)
+	for (int i = 0; i < numroads && trackfile; ++i)
 	{
 		roads.push_back(ROADSTRIP());
-		roads.back().ReadFrom(trackfile, error_output);
+		roads.back().ReadFrom(trackfile, cerr);
 	}
 
 	if (reverse)

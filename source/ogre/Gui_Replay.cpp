@@ -55,8 +55,8 @@ void CGui::btnRplLoad(WP)  // Load
 			MessageBoxStyle::IconWarning | MessageBoxStyle::Ok);
 	}else
 	{	//  car, track change
-		const ReplayHeader& h = app->replay.header;
-		string car = h.car, trk = h.track;
+		const ReplayHeader2& h = app->replay.header;
+		string trk = h.track;
 		bool usr = h.track_user == 1;
 
 		//  check if cars, track exist
@@ -65,11 +65,10 @@ void CGui::btnRplLoad(WP)  // Load
 			er += TR("#{Track}: ")+trk+TR(" - #{DoesntExist}.\n");
 		if (h.track_user && !fs::exists(PATHMANAGER::TracksUser()+"/"+trk))
 			er += TR("#{Track} (#{TweakUser}): ")+trk+TR(" - #{DoesntExist}.\n");
-		if (!fs::exists(PATHMANAGER::Cars()+"/"+car))
-			er += TR("#{Car}: ")+car+TR(" - #{DoesntExist}.\n");
-		for (p=1; p < h.numPlayers; ++p)
-			if (!fs::exists(PATHMANAGER::Cars()+"/"+h.cars[p-1]))
-				er += TR("#{Car}: ")+h.cars[p-1]+TR(" - #{DoesntExist}.\n");
+
+		for (p=0; p < h.numPlayers; ++p)
+			if (!fs::exists(PATHMANAGER::Cars()+"/"+h.cars[p]))
+				er += TR("#{Vehicle}: ")+h.cars[p]+TR(" - #{DoesntExist}.\n");
 
 		if (!er.empty())
 		{	Message::createMessageBox(
@@ -84,21 +83,19 @@ void CGui::btnRplLoad(WP)  // Load
 
 		//  set game config from replay
 		pSet->game = pSet->gui;
-		pSet->game.car[0] = car;  pSet->game.track = trk;  pSet->game.track_user = usr;
-		pSet->game.car_hue[0] = h.hue[0];  pSet->game.car_sat[0] = h.sat[0];  pSet->game.car_val[0] = h.val[0];
+		pSet->game.track = trk;  pSet->game.track_user = usr;
 
-		pSet->game.trees = h.ver < 6 ? 1.f : h.trees;  // older didnt have trees saved, so use default 1
+		pSet->game.trees = h.trees;
 		pSet->game.local_players = h.numPlayers;
 		BackFromChs();
 		LogO("RPL btn Load  players: "+toStr(h.numPlayers)+" netw: "+ toStr(h.networked));
 
-		for (p=1; p < h.numPlayers; ++p)
-		{	pSet->game.car[p] = h.cars[p-1];
-			pSet->game.car_hue[p] = h.hue[p];  pSet->game.car_sat[p] = h.sat[p];  pSet->game.car_val[p] = h.val[p];
+		for (p=0; p < h.numPlayers; ++p)
+		{	pSet->game.car[p] = h.cars[p];
 		}
 		app->newGameRpl = true;
 		btnNewGame(0);
-		app->bRplPlay = 1;
+		app->bRplPlay = 1;  app->iRplSkip = 0;
 	}
 }
 
@@ -132,22 +129,26 @@ void CGui::listRplChng(List* li, size_t pos)
 	edRplName->setCaption(name);
 	
 	//  load replay header, upd info text
-	Replay rpl;  char stm[128];
+	Replay2 rpl;  char stm[128];
 	if (rpl.LoadFile(file,true))
 	{
-		String ss = String(TR("#{Track}: ")) + gcom->GetSceneryColor(rpl.header.track) +
-			rpl.header.track + (rpl.header.track_user ? "  *"+TR("#{TweakUser}")+"*" : "");
+		const ReplayHeader2& rh = rpl.header;
+		String ss = String(TR("#{Track}: ")) + gcom->GetSceneryColor(rh.track) +
+			rh.track + (rh.track_user ? "  *"+TR("#{TweakUser}")+"*" : "");
 		valRplName->setCaption(ss);
+		char pp = rh.numPlayers, netw = rh.networked, n;
 
-		ss = String(TR("#{Car}: ")) + rpl.header.car + "       "+
-			(rpl.header.numPlayers == 1 ? "" : (TR("#{Players}: ") + toStr(rpl.header.numPlayers))) + "  " +
-			(rpl.header.networked == 0 ? "" : "M") +  //TR("#{Multiplayer}")
-			"\n#C0D8F0" + TR("#{RplTime}: ") + CHud::StrTime(rpl.GetTimeLength()) +
-			"\n#90A0B0" + TR("#{Simulation}: ") + rpl.header.sim_mode;
-		if (rpl.header.networked == 1)  // list nicks
-			ss += String("\n#90C0E0")+rpl.header.nicks[0]+"  "+rpl.header.nicks[1]+"  "+rpl.header.nicks[2]+"  "+rpl.header.nicks[3];
-		//else  // other cars, car colors ..
-			//ss += String("\n#90C0E0")+rpl.header.cars[0]+"  "+rpl.header.cars[1]+"  "+rpl.header.cars[2];
+		ss = String(TR("#{Vehicles}: "));
+		for (n=0; n < pp; ++n)  ss += rh.cars[n] + "  ";
+		ss += //(netw == 0 ? "" : "M") +  //TR("#{Multiplayer}")
+			"\n#C0D8F0" + TR("#{RplTime}: ") + StrTime(rpl.GetTimeLength()) +
+			"\n#90A0B0" + TR("#{Simulation}: ") + rh.sim_mode;
+
+		if (netw == 1)  // list nicks
+		{	ss += String("\n#90C0E0");
+			for (n=0; n < pp; ++n)
+				ss += rh.nicks[n]+"  ";
+		}
 		valRplInfo->setCaption(ss);
 
 		//  file stats
@@ -155,9 +156,9 @@ void CGui::listRplChng(List* li, size_t pos)
 		std::time_t ti = fs::last_write_time(file);
 		if (!std::strftime(stm, 126, "%d.%b'%y  %a %H:%M", std::localtime(&ti)))  stm[0]=0;
 		
-		ss =/*"Time: "+*/String(stm)+"\n#A0A0A0"+
+		ss = String(stm)+"\n#A0A0A0"+  // date
 			String(TR("#{RplFileSize}: ")) + fToStr( float(size)/1000000.f, 2,5) + TR(" #{UnitMB}") + "\n#808080" +
-			TR("#{RplVersion}: ") + toStr(rpl.header.ver) + "     " + toStr(rpl.header.frameSize) + "B";
+			TR("#{RplVersion}: ") + toStr(rh.ver);
 		if (valRplInfo2)  valRplInfo2->setCaption(ss);
 	}
 	//edRplDesc
@@ -240,15 +241,13 @@ void CGui::updReplaysList()
 		String s = *i;  s = StringUtil::replaceAll(s,".rpl","");
 		String slow = s;  StringUtil::toLowerCase(slow);
 		if (sRplFind == "" || strstr(slow.c_str(), sRplFind.c_str()) != 0)
-		if (pSet->rpl_listview != 1 || StringUtil::startsWith(s,pSet->game.track, false))
-		{
-			size_type f = s.find_first_of("_-0123456789");
-			string ss;
-			if (f != string::npos)  ss = s.substr(0,f);
-			else  ss = s.substr(0,1);  //gcom->scnClr[gcom->scnN[]];
-			rplList->addItem(gcom->GetSceneryColor(ss) + s);
-		}
-	}
+		if (pSet->rpl_listview != 1 || StringUtil::startsWith(s,pSet->gui.track, false))
+		{	String t = s;
+			size_t p = t.find_first_of("_");
+			if (p != string::npos)
+				t = s.substr(0, p);
+			rplList->addItem(gcom->GetSceneryColor(t) + s);
+	}	}
 	//LogO(String("::: Time ReplaysList: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");
 }
 
@@ -303,7 +302,8 @@ void CGui::btnRplRename(WP)
 
 
 
-//  rename old trk names
+//  Game replay Tools
+//--------------------------------------------------------------------------------
 bool Replay::fixOldTrkName(string& s)
 {
 	if (s.length() <= 4)  return false;
@@ -334,9 +334,10 @@ bool Replay::fixOldTrkName(string& s)
 	return false;
 }
 
+//  Rename old track names
 void CGui::btnRenameOldTrk(WP)
 {
-	LogO("--------  Renaming old files");
+	LogO("==------  Renaming old replays and ghosts");
 	std::vector<string> pp;
 	pp.push_back(PATHMANAGER::Replays());
 	pp.push_back(PATHMANAGER::Ghosts() +"/easy");
@@ -364,5 +365,106 @@ void CGui::btnRenameOldTrk(WP)
 					fs::rename(p+"/"+s, p+"/"+sn);
 			}	}
 	}	}
-	LogO("--------  End");
+	LogO("==------  Renaming End");
+}
+
+//  Convert to Replay2
+void CGui::btnConvertAllRpl(WP)
+{
+	if (bConvertRpl)  return;
+	bConvertRpl = true;
+
+	txtConvert->setVisible(true);
+
+	iConvCur = -1;  iConvAll = 1;
+	mThrConvert = boost::thread(boost::bind(&CGui::ThreadConvert, boost::ref(*this)));
+}
+
+void CGui::ThreadConvert()
+{
+	LogO("====----  Converting old replays and ghosts");
+	Ogre::Timer ti;
+	
+	std::vector<string> paths, files[3];
+	//  paths
+	paths.push_back(PATHMANAGER::Ghosts() +"/easy");
+	paths.push_back(PATHMANAGER::Ghosts() +"/normal");
+	paths.push_back(PATHMANAGER::Replays());
+
+	iConvPathCur = 0;  iConvPathAll = paths.size();
+	iConvFiles = 0;  totalConv = 0;  totalConvNew = 0;  totalConvCur = 0;
+
+	//  List files  ------------
+	strlist li;  int p;
+	Replay2 rpl;
+	for (p=0; p < iConvPathAll; ++p)
+	{	iConvPathCur = p;
+
+		const string& path = paths[p];
+		li.clear();
+		PATHMANAGER::DirList(path, li, "rpl");
+		iConvCur = 0;  iConvAll = li.size();
+
+		for (strlist::iterator i = li.begin(); i != li.end(); ++i)
+		{
+			if (app->mShutDown)  return;
+			String file = *i, s = path +"/"+ file;
+
+			//Replay2 rpl;
+			rpl.LoadFile(s, true);  // header
+			if (rpl.header.ver <= 10)  // old, not converted, 10 was last 2.5
+			{
+				++iConvFiles;
+				files[p].push_back(file);
+				boost::uintmax_t size = fs::file_size(s);
+				totalConv += size;
+			}
+			++iConvCur;
+		}
+		LogO("PATH: "+path+" total size:   "+fToStr( float(totalConv)/1000000.f, 2,5)+" MiB");
+		LogO("PATH: "+path+" total after:  "+fToStr( float(totalConvNew)/1000000.f, 2,5)+" MiB");
+	}
+	LogO(String("::: Time Convert get list: ") + fToStr(ti.getMilliseconds()/1000.f,1,4) + " s");
+	LogO("====----  Converting Start");
+
+	iConvCur = 0;  iConvAll = iConvFiles;
+
+
+	LogO(String("FILES to convert: ") + toStr(iConvFiles));
+
+	//  Convert  ------------
+	for (p=0; p < iConvPathAll; ++p)
+	{	iConvPathCur = p;
+
+		const string& path = paths[p];
+		iConvCur = 0;  iConvAll = files[p].size();
+
+		while (iConvCur < iConvAll && !app->mShutDown)
+		{
+			const string s = path +"/"+ files[p][iConvCur];
+			//Replay2 rpl;
+			rpl.LoadFile(s);  // converts old
+			boost::uintmax_t size = fs::file_size(s);  // for progress
+			totalConvCur += size;
+			std::time_t tim = fs::last_write_time(s);
+
+			rpl.SaveFile(s);  // same name, no backup
+			fs::last_write_time(s, tim);  // restore original date
+			boost::uintmax_t sizeNew = fs::file_size(s);
+			totalConvNew += sizeNew;
+			++iConvCur;
+		}
+	}
+
+	//  Results  ------------
+	bConvertRpl = false;
+	LogO("====----  Converting Results");
+	LogO("  Sizes");
+	LogO("  old:   "+ fToStr( float(totalConv)/1000000.f, 2,5) +" MiB");
+	LogO("  new:  "+ fToStr( float(totalConvNew)/1000000.f, 2,5) +" MiB");
+	if (totalConvCur!=totalConv || totalConv==0){} else
+	LogO("  ratio:  "+ fToStr(100.f* float(totalConvNew)/float(totalConv), 2,5) +" %");
+
+	LogO(String("::: Time Convert: ") + fToStr(ti.getMilliseconds()/1000.f,1,4) + " s");
+	LogO("====----  Converting End");
 }

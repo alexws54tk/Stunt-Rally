@@ -68,8 +68,8 @@ public:
 	
 
 	//  tool windows texts
-	const static int MAX_TXT=11,
-		BR_TXT=9, RD_TXT=11, RDS_TXT=11,  //  brush, road, road stats
+	const static int MAX_TXT=12,
+		BR_TXT=9, RD_TXT=12, RDS_TXT=11,  //  brush, road, road stats
 		ST_TXT=6, FL_TXT=6, OBJ_TXT=6, RI_TXT=6;  //  start, fluids, objects,
 
 	Txt	brTxt[BR_TXT], brVal[BR_TXT], brKey[BR_TXT],
@@ -290,7 +290,17 @@ public:
 	CK(DenyReversed);  CK(TiresAsphalt);  CK(TerrainEmissive);
 	CK(NoWrongChks);
 	void SldUpd_Game();
+	//  sound
+	Txt txtRevebDescr;
+	Cmb cmbReverbs;  void comboReverbs(CMB), UpdRevDescr();
+	//  info
 	Txt txtEdInfo;  void UpdEdInfo();
+	
+
+	//  [Pacenotes]  ----
+	SV svPaceShow, svPaceDist, svPaceSize, svPaceNear, svPaceAlpha;
+	void slUpd_Pace(SV*);
+	CK(TrkReverse);
 
 
 	//  [Objects]  ----

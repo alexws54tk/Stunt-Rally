@@ -3,6 +3,7 @@
 #include "Def_Str.h"
 #include "../common/data/SceneXml.h"
 #include "../common/CScene.h"
+#include "../common/Axes.h"
 #include "../../vdrift/pathmanager.h"
 #include "../../btOgre/BtOgreGP.h"
 #include "../../road/Road.h"
@@ -14,14 +15,14 @@
 	#include "../CGame.h"
 	#include "../../vdrift/game.h"
 #endif
-#include "BulletCollision/CollisionDispatch/btCollisionObject.h"
-#include "BulletCollision/CollisionShapes/btCollisionShape.h"
-#include "LinearMath/btDefaultMotionState.h"
-#include "BulletDynamics/Dynamics/btRigidBody.h"
-#include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
-#include "LinearMath/btSerializer.h"
-#include "Serialize/BulletFileLoader/btBulletFile.h"
-#include "Serialize/BulletWorldImporter/btBulletWorldImporter.h"
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
+#include <BulletCollision/CollisionShapes/btCollisionShape.h>
+#include <LinearMath/btDefaultMotionState.h>
+#include <BulletDynamics/Dynamics/btRigidBody.h>
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+#include <LinearMath/btSerializer.h>
+#include <BulletFileLoader/btBulletFile.h>
+#include <BulletWorldImporter/btBulletWorldImporter.h>
 
 #include <OgreManualObject.h>
 #include <OgreMeshManager.h>
@@ -118,7 +119,7 @@ void App::CreateObjects()
 		bool ex0 = PATHMANAGER::FileExists(PATHMANAGER::Data()+"/objects0/"+ (*it).first + ".mesh");
 		bool exC = PATHMANAGER::FileExists(PATHMANAGER::Data()+"/objectsC/"+ (*it).first + ".mesh");
 		(*it).second = ex || ex0 || exC;
-		if (!ex)  LogO("CreateObjects mesh doesn't exist: " + (*it).first + ".mesh");
+		if (!ex)  LogO("Warning: CreateObjects mesh doesn't exist: " + (*it).first + ".mesh");
 	}
 	for (map<string,bool>::iterator it = objHasBlt.begin(); it != objHasBlt.end(); ++it)
 		(*it).second = PATHMANAGER::FileExists(PATHMANAGER::Data()+"/objects/"+ (*it).first + ".bullet");
@@ -152,11 +153,8 @@ void App::CreateObjects()
 		if (!o.dyn)
 		{
 			///  static  . . . . . . . . . . . . 
-			Vector3 posO = Vector3(o.pos[0],o.pos[2],-o.pos[1]);
-			Quaternion q(o.rot[0],o.rot[1],o.rot[2],o.rot[3]), q1;
-			Radian rad;  Vector3 axi;  q.ToAngleAxis(rad, axi);
-			q1.FromAngleAxis(-rad,Vector3(axi.z,-axi.x,-axi.y));
-			Quaternion rotO = q1 * Object::qrFix;
+			Vector3 posO = Axes::toOgre(o.pos);
+			Quaternion rotO = Axes::toOgreW(o.rot);
 
 			Matrix4 tre;  tre.makeTransform(posO,o.scale,rotO);
 			BtOgre::StaticMeshToShapeConverter converter(o.ent, tre);
@@ -189,6 +187,17 @@ void App::CreateObjects()
 			{
 				o.ms = fileLoader->ms;  // 1 only
 				o.rb = fileLoader->rb;  // 1 only
+
+				/*int nshp = fileLoader->getNumCollisionShapes();
+				for (int i=0; i < nshp; ++i)
+					pGame->collision.shapes.push_back(
+						fileLoader->getCollisionShapeByIndex(i));/**/
+
+				#ifndef SR_EDITOR
+				btTransform t1;  // save 1st pos for reset
+				o.ms->getWorldTransform(t1);
+				o.tr1 = new btTransform(t1);
+				#endif
 				#if 0
 				LogO(".bullet: "+o.name+
 					"  shapes:"+toStr(fileLoader->getNumCollisionShapes())+
@@ -212,6 +221,8 @@ void App::DestroyObjects(bool clear)
 	for (int i=0; i < scn->sc->objects.size(); ++i)
 	{
 		Object& o = scn->sc->objects[i];
+		delete o.tr1;  o.tr1 = 0;
+
 		// ogre
 		if (o.nd)  mSceneMgr->destroySceneNode(o.nd);  o.nd = 0;
 		#ifdef SR_EDITOR  // game has destroyAll
@@ -245,6 +256,24 @@ void App::DestroyObjects(bool clear)
 		scn->sc->objects.clear();
 }
 
+void App::ResetObjects()
+{
+	for (int i=0; i < scn->sc->objects.size(); ++i)
+	{
+		Object& o = scn->sc->objects[i];
+		if (o.dyn && o.ms && o.tr1)
+		{
+			o.rb->clearForces();
+			o.rb->setHitFraction(0.f);
+			o.rb->setLinearVelocity(btVector3(0,0,0));
+			o.rb->setAngularVelocity(btVector3(0,0,0));
+			o.rb->setActivationState(WANTS_DEACTIVATION);
+			o.rb->setWorldTransform(*o.tr1);
+			o.ms->setWorldTransform(*o.tr1);
+			o.SetFromBlt();
+	}	}
+}
+
 
 //  Pick
 //-------------------------------------------------------------------------------------------------------
@@ -268,12 +297,8 @@ void App::UpdObjPick()
 	const AxisAlignedBox& ab = o.nd->getAttachedObject(0)->getBoundingBox();
 	Vector3 s = o.scale * ab.getSize();  // * sel obj's node aabb
 
-	Vector3 posO = Vector3(o.pos[0],o.pos[2],-o.pos[1]);
-
-	Quaternion q(o.rot[0],o.rot[1],o.rot[2],o.rot[3]), q1;
-	Radian rad;  Vector3 axi;  q.ToAngleAxis(rad, axi);
-	q1.FromAngleAxis(-rad,Vector3(axi.z,-axi.x,-axi.y));
-	Quaternion rotO = q1 * Object::qrFix;
+	Vector3 posO = Axes::toOgre(o.pos);
+	Quaternion rotO = Axes::toOgreW(o.rot);
 
 	Vector3 scaledCenter = ab.getCenter() * o.scale;
 	posO += (rotO * scaledCenter);
@@ -426,7 +451,7 @@ void App::AddNewObj(bool getName)  //App..
 	//  pos, rot
 	if (getName)
 	{	// one new
-		const Ogre::Vector3& v = scn->road->posHit;
+		const Vector3& v = scn->road->posHit;
 		o.pos[0] = v.x;  o.pos[1] =-v.z;  o.pos[2] = v.y + objNew.pos[2];
 	}else  // many
 	{	// offset for cursor pos..

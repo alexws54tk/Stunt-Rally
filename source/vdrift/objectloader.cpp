@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "objectloader.h"
+#include "../ogre/common/Def_Str.h"
 
 #include <string>
 #include <fstream>
@@ -13,17 +14,11 @@
 
 OBJECTLOADER::OBJECTLOADER(
 	const std::string & ntrackpath,
-	//SCENENODE & nsceneroot, 
 	int nanisotropy,
 	bool newdynamicshadowsenabled,
-	std::ostream & ninfo_output,
-	std::ostream & nerror_output,
 	bool newcull,
 	bool doagressivecombining)
 : trackpath(ntrackpath),
-	//sceneroot(nsceneroot),
-	info_output(ninfo_output),
-	error_output(nerror_output),
 	error(false),
 	numobjects(0),
 	packload(false),
@@ -51,11 +46,11 @@ bool OBJECTLOADER::BeginObjectLoad()
 		return false;
 
 	if (params_per_object != expected_params)
-		info_output << "Track object list has " << params_per_object << " params per object, expected " << expected_params << ", this is fine, continuing" << std::endl;
+		std::cout << "Track object list has " << params_per_object << " params per object, expected " << expected_params << ", this is fine, continuing" << std::endl;
 	
 	if (params_per_object < min_params)
 	{
-		error_output << "Track object list has " << params_per_object << " params per object, expected " << expected_params << std::endl;
+		std::cerr << "Track object list has " << params_per_object << " params per object, expected " << expected_params << std::endl;
 		return false;
 	}
 
@@ -82,7 +77,7 @@ void OBJECTLOADER::CalculateNumObjects()
 	std::string junk;
 	while (GetParam(f, junk))
 	{
-		for (int i = 0; i < params_per_object-1; i++)
+		for (int i = 0; i < params_per_object-1; ++i)
 			GetParam(f, junk);
 
 		numobjects++;
@@ -91,7 +86,7 @@ void OBJECTLOADER::CalculateNumObjects()
 
 bool OBJECTLOADER::GetSurfacesBool()
 {
-	info_output << "calling Get Surfaces Bool when we shouldn't!!! " << std::endl;
+	std::cout << "calling Get Surfaces Bool when we shouldn't!!! " << std::endl;
 	if (params_per_object >= 17)
 		return true;
 	else
@@ -111,7 +106,8 @@ std::pair <bool,bool> OBJECTLOADER::ContinueObjectLoad(	TRACK* track,
 
 	if (!(GetParam(objectfile, model_name)))
 	{
-		info_output << "Track loaded: " << model_library.size() << " models, " << texture_library.size() << " textures, " << /*surfaces.size() << " surfaces" << */std::endl;
+		if (!model_library.empty())
+			LogO("VDrift track loaded: "+toStr(model_library.size())+" models, "+toStr(texture_library.size())+" textures");// << /*surfaces.size() << " surfaces" << */std::endl;
 		return std::pair <bool,bool> (false, false);
 	}
 
@@ -160,7 +156,7 @@ std::pair <bool,bool> OBJECTLOADER::ContinueObjectLoad(	TRACK* track,
 		GetParam(objectfile, surface_type);
 		
 		
-	for (int i = 0; i < params_per_object - expected_params; i++)
+	for (int i = 0; i < params_per_object - expected_params; ++i)
 		GetParam(objectfile, otherjunk);
 
 	MODEL * model(NULL);
@@ -169,17 +165,17 @@ std::pair <bool,bool> OBJECTLOADER::ContinueObjectLoad(	TRACK* track,
 	{
 		if (packload)
 		{
-			if (!model_library[model_name].Load(model_name, error_output, true, &pack))
+			if (!model_library[model_name].Load(model_name, std::cerr, true, &pack))
 			{
-				error_output << "Error loading model: " << objectpath + "/" + model_name << " from pack " << objectpath + "/objects.jpk" << std::endl;
+				std::cerr << "Error loading model: " << objectpath + "/" + model_name << " from pack " << objectpath + "/objects.jpk" << std::endl;
 				return std::pair <bool, bool> (true, false); //fail the entire track loading
 			}
 		}
 		else/**/
 		{
-			if (!model_library[model_name].Load(objectpath + "/" + model_name, /*NULL,*/ error_output))
+			if (!model_library[model_name].Load(objectpath + "/" + model_name, /*NULL,*/ std::cerr))
 			{
-				error_output << "Error loading model: " << objectpath + "/" + model_name << std::endl;
+				std::cerr << "Error loading model: " << objectpath + "/" + model_name << std::endl;
 				return std::pair <bool, bool> (true, false); //fail the entire track loading
 			}
 		}
@@ -202,9 +198,9 @@ std::pair <bool,bool> OBJECTLOADER::ContinueObjectLoad(	TRACK* track,
 		bool clampu = clamptexture == 1 || clamptexture == 2;
 		bool clampv = clamptexture == 1 || clamptexture == 3;
 		texinfo.SetRepeat(!clampu, !clampv);
-		if (!texture_library[diffuse_texture_name].Load(texinfo, error_output, texture_size))
+		if (!texture_library[diffuse_texture_name].Load(texinfo, std::cerr, texture_size))
 		{
-			error_output << "Error loading texture: " << objectpath + "/" + diffuse_texture_name << ", skipping object " << model_name << " and continuing" << std::endl;
+			std::cerr << "Error loading texture: " << objectpath + "/" + diffuse_texture_name << ", skipping object " << model_name << " and continuing" << std::endl;
 			skip = true; //fail the loading of this model only
 		}
 	}
@@ -225,9 +221,9 @@ std::pair <bool,bool> OBJECTLOADER::ContinueObjectLoad(	TRACK* track,
 			std::ifstream filecheck(filepath.c_str());
 			if (filecheck)
 			{
-				if (!texture_library[miscmap1_texture_name].Load(texinfo, error_output, texture_size))
+				if (!texture_library[miscmap1_texture_name].Load(texinfo, std::cerr, texture_size))
 				{
-					error_output << "Error loading texture: " << objectpath + "/" + miscmap1_texture_name << " for object " << model_name << ", continuing" << std::endl;
+					std::cerr << "Error loading texture: " << objectpath + "/" + miscmap1_texture_name << " for object " << model_name << ", continuing" << std::endl;
 					texture_library.erase(miscmap1_texture_name);
 					//don't fail, this isn't a critical error
 				}

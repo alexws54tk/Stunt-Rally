@@ -101,7 +101,7 @@ void CARDYNAMICS::UpdateBuoyancy()
 
 	///  wheel spin force (for mud)
 	//_______________________________________________________
-	for (int w=0; w < 4; ++w)
+	for (int w=0; w < numWheels; ++w)
 	{
 		if (inFluidsWh[w].size() > 0)  // 0 or 1 is there
 		{
@@ -136,7 +136,8 @@ void CARDYNAMICS::UpdateBuoyancy()
 					
 					float f = std::min(fp.whMaxAngVel, std::max(-fp.whMaxAngVel, (float)wheel[w].GetAngularVelocity() ));
 					QUATERNION<Dbl> steer;
-					float angle = -wheel[wp].GetSteerAngle() * fp.whSteerMul  + bump * fp.bumpAng;
+					float ba = numWheels==2 && w==0 ? 2.f : 1.f;  //bike
+					float angle = -wheel[wp].GetSteerAngle() * fp.whSteerMul * ba  + bump * fp.bumpAng;
 					steer.Rotate(angle * PI_d/180.f, 0, 0, 1);
 
 					//  forwards, side, up
@@ -163,16 +164,13 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 {
 	using namespace std;
 	out.precision(2);  out.width(6);  out << fixed;
-	int cnt = pSet->car_dbgtxtcnt;
+	int cnt = pSet->car_dbgtxtcnt, w;
 
 	if (p1)
 	{
 		#if 0  //  bullet hit data-
-			out << "hit S : " << fSndForce << endl;
 			out << "hit P : " << fParIntens << endl;
 			//out << "hit t : " << fHitTime << endl;
-			out << "bHitS : " << (bHitSnd?1:0) << " id "<< sndHitN << endl;
-			out << "N Vel : " << fNormVel << endl;
 			out << "v Vel : " << GetSpeed() << endl;
 		#endif
 		#if 0
@@ -199,7 +197,7 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 				out << " vel: " << sv << endl << "  au: " << al << endl;
 			}/**/
 			//  wheel pos, com ratio
-			Dbl whf = wheel[0].GetExtendedPosition()[0], whr = wheel[2].GetExtendedPosition()[0];
+			Dbl whf = wheel[0].GetExtendedPosition()[0], whr = wheel[numWheels==2?1:2].GetExtendedPosition()[0];
 			out.precision(2);
 			out << "  wh fr " << whf << "  rr " << whr;
 			out.precision(1);
@@ -208,7 +206,7 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 			MATRIX3 <Dbl> inertia = body.GetInertiaConst();
 			
 			out << "inertia: roll " << inertia[0] << " pitch " << inertia[4] << " yaw " << inertia[8] << endl;
-			
+
 			//out << "inertia: " << inertia[0] <<" "<< inertia[4] <<" "<< inertia[8] <<" < "<< inertia[1] <<" "<< inertia[2] <<" "<< inertia[3] <<" "<< inertia[5] <<" "<< inertia[6] <<" "<< inertia[7] << endl;
 			//MATHVECTOR<Dbl,3> av = GetAngularVelocity();  Orientation().RotateVector(av);
 			//out << "ang vel: " << fToStr(av[0],2,5) <<" "<< fToStr(av[1],2,5) <<" "<< fToStr(av[2],2,5) << endl;
@@ -222,9 +220,12 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 
 		//  fluids
 		if (cnt > 1)
-		{	out << "in fluids: " << inFluids.size() <<
-					" wh: " << inFluidsWh[0].size() << inFluidsWh[1].size() << inFluidsWh[2].size() << inFluidsWh[3].size() << endl;
-			out << "wh fl H: " << fToStr(whH[0],1,3) << " " << fToStr(whH[1],1,3) << " " << fToStr(whH[2],1,3) << " " << fToStr(whH[3],1,3) << " \n\n";
+		{	out << "in fluids: " << inFluids.size() << " wh:";
+			for (w=0; w < numWheels; ++w)  out << " " << inFluidsWh[w].size();
+			out << endl;
+			out << "wh fl H:";
+			for (w=0; w < numWheels; ++w)  out << " " << fToStr(whH[w],1,3);
+			out << " \n\n";
 		}
 
 		if (cnt > 3)
@@ -250,24 +251,21 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 		}
 	}
 
+	const static char sWh[MAX_WHEELS][8] = {" FL [^", " FR ^]", " RL [_", " RR _]", " RL2[_", " RR2_]"};
 	if (p2)
 	{
 		out << "\n\n\n\n";
 		if (cnt > 4)
 		{
 			out << "---Brake---\n";
-			out << " FL [^" << endl;	brake[FRONT_LEFT].DebugPrint(out);
-			out << " FR ^]" << endl;	brake[FRONT_RIGHT].DebugPrint(out);
-			out << " RL [_" << endl;	brake[REAR_LEFT].DebugPrint(out);
-			out << " RR _]" << endl;	brake[REAR_RIGHT].DebugPrint(out);
+			for (w=0; w < numWheels; ++w)
+			{	out << sWh[w] << endl;	brake[w].DebugPrint(out);  }
 		}
 		if (cnt > 7)
 		{
 			out << "\n---Suspension---\n";
-			out << " FL [^" << endl;	suspension[FRONT_LEFT].DebugPrint(out);
-			out << " FR ^]" << endl;	suspension[FRONT_RIGHT].DebugPrint(out);
-			out << " RL [_" << endl;	suspension[REAR_LEFT].DebugPrint(out);
-			out << " RR _]" << endl;	suspension[REAR_RIGHT].DebugPrint(out);
+			for (w=0; w < numWheels; ++w)
+			{	out << sWh[w] << endl;	suspension[w].DebugPrint(out);  }
 		}
 	}
 
@@ -275,10 +273,8 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 		if (cnt > 6)
 		{
 			out << "---Wheel---\n";
-			out << " FL [^" << endl;	wheel[FRONT_LEFT].DebugPrint(out);
-			out << " FR ^]" << endl;	wheel[FRONT_RIGHT].DebugPrint(out);
-			out << " RL [_" << endl;	wheel[REAR_LEFT].DebugPrint(out);
-			out << " RR _]" << endl;	wheel[REAR_RIGHT].DebugPrint(out);
+			for (w=0; w < numWheels; ++w)
+			{	out << sWh[w] << endl;	wheel[w].DebugPrint(out);  }
 		}
 
 	if (p4)
@@ -317,7 +313,7 @@ void CARDYNAMICS::DebugPrint( std::ostream & out, bool p1, bool p2, bool p3, boo
 
 			//---
 			/*out << "__Tires__" << endl;
-			for (int i=0; i < 4 ; ++i)
+			for (int i=0; i < numWheels; ++i)
 			{
 				CARWHEEL::SlideSlip& sl = wheel[i].slips;
 				out << "Fx " << fToStr(sl.Fx,0,6) << "  FxM " << fToStr(sl.Fxm,0,6) << "   Fy " << fToStr(sl.Fy,0,6) << "  FyM " << fToStr(sl.Fym,0,6) << endl;
@@ -360,7 +356,7 @@ void CARDYNAMICS::UpdateBody(Dbl dt, Dbl drive_torque[])
 
 		/// <><> terrain layer damage _
 		int w;
-		for (w=0; w<4; ++w)
+		for (w=0; w < numWheels; ++w)
 		if (!iWhOnRoad[w])
 		{
 			float d = 0.5f * wheel_contact[w].GetDepth() / wheel[w].GetRadius();
@@ -381,7 +377,7 @@ void CARDYNAMICS::UpdateBody(Dbl dt, Dbl drive_torque[])
 		}
 
 		/// <><> fluid damage _
-		for (w=0; w<4; ++w)
+		for (w=0; w < numWheels; ++w)
 		if (whH[w] > 0.01f)
 			fDamage += whDmg[w] * whH[w] * fRed * dt;
 	}
@@ -465,10 +461,10 @@ void CARDYNAMICS::UpdateBody(Dbl dt, Dbl drive_torque[])
 	
 
 	int i;
-	Dbl normal_force[WHEEL_POSITION_SIZE];
+	Dbl normal_force[MAX_WHEELS];
 	if (car)
 	{
-		for (i = 0; i < WHEEL_POSITION_SIZE; ++i)
+		for (i = 0; i < numWheels; ++i)
 		{
 			MATHVECTOR<Dbl,3> suspension_force = UpdateSuspension(i, dt);
 			normal_force[i] = suspension_force.dot(wheel_contact[i].GetNormal());
@@ -486,14 +482,14 @@ void CARDYNAMICS::UpdateBody(Dbl dt, Dbl drive_torque[])
 	// update wheel state
 	if (car)
 	{
-		for (i = 0; i < WHEEL_POSITION_SIZE; ++i)
+		for (i = 0; i < numWheels; ++i)
 		{
 			wheel_position[i] = GetWheelPositionAtDisplacement(WHEEL_POSITION(i), suspension[i].GetDisplacementPercent());
 			wheel_orientation[i] = Orientation() * GetWheelSteeringAndSuspensionOrientation(WHEEL_POSITION(i));
 		}
 		InterpolateWheelContacts(dt);
 
-		for (i = 0; i < WHEEL_POSITION_SIZE; ++i)
+		for (i = 0; i < numWheels; ++i)
 		{
 			if (abs)  DoABS(i, normal_force[i]);
 			if (tcs)  DoTCS(i, normal_force[i]);
@@ -513,7 +509,7 @@ void CARDYNAMICS::Tick(Dbl dt)
 	const float internal_dt = dt / num_repeats;
 	for(int i = 0; i < num_repeats; ++i)
 	{
-		Dbl drive_torque[WHEEL_POSITION_SIZE];
+		Dbl drive_torque[MAX_WHEELS];
 
 		UpdateDriveline(internal_dt, drive_torque);
 
@@ -557,7 +553,7 @@ void CARDYNAMICS::SynchronizeChassis()
 void CARDYNAMICS::UpdateWheelContacts()
 {
 	MATHVECTOR<float,3> raydir = GetDownVector();
-	for (int i = 0; i < WHEEL_POSITION_SIZE; i++)
+	for (int i = 0; i < numWheels; ++i)
 	{
 		COLLISION_CONTACT & wheelContact = wheel_contact[WHEEL_POSITION(i)];
 		MATHVECTOR<float,3> raystart = LocalToWorld(wheel[i].GetExtendedPosition());

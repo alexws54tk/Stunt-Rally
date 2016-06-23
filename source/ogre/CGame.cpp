@@ -8,6 +8,7 @@
 #include "common/data/CData.h"
 #include "common/data/SceneXml.h"
 #include "common/CScene.h"
+#include "../vdrift/cardefs.h"
 #include "../vdrift/game.h"
 #include "../road/Road.h"
 #include "SplitScreen.h"
@@ -15,6 +16,7 @@
 #include "common/WaterRTT.h"
 #include "common/MultiList2.h"
 #include "common/Gui_Popup.h"
+#include "common/Axes.h"
 #include <OgreTerrain.h>
 #include <OgreTerrainGroup.h>
 #include <OgreTerrainPaging.h>
@@ -35,8 +37,9 @@ App::App(SETTINGS *settings, GAME *game)
 	,blendMtr(0), blendMapSize(513), dbgdraw(0)
 	,carIdWin(-1), iRplCarOfs(0)
 	// other
-	,newGameRpl(0), curLoadState(0)
-	,bRplPlay(0),bRplPause(0), bRplRec(0), bRplWnd(0)
+	,newGameRpl(0), curLoadState(0), dstTrk(1)
+	,bHideHudArr(0), bHideHudBeam(0), bHideHudPace(0)
+	,bRplPlay(0),bRplPause(0), bRplRec(0), bRplWnd(1), iRplSkip(0)
 	,iEdTire(0), iTireLoad(0), iCurLat(0),iCurLong(0),iCurAlign(0), iUpdTireGr(0)
 	,fLastFrameDT(0.001f)
 	,bPerfTest(0),iPerfTestStage(PT_StartWait)
@@ -45,13 +48,14 @@ App::App(SETTINGS *settings, GAME *game)
 	pSet = settings;
 	pGame->collision.pApp = this;
 
-	frm.resize(4);
-	for (int i=0; i < 8; ++i)
+	frm.resize(MAX_CARS);
+	for (int i=0; i < MAX_CARS; ++i)
 		iCurPoses[i] = 0;
 
 	Axes::Init();
 
 	resCar = "";  resTrk = "";  resDrv = "";
+	oldTrack = "";  oldTrkUser = false;
 	
 	///  new
 	scn = new CScene(this);
@@ -72,14 +76,16 @@ App::App(SETTINGS *settings, GAME *game)
 		mThread = boost::thread(boost::bind(&App::UpdThr, boost::ref(*this)));
 }
 
-
-App::~App()
+void App::ShutDown()
 {
 	mShutDown = true;
 	if (mThread.joinable())
 		mThread.join();
+}
 
-	OGRE_DELETE dbgdraw;
+App::~App()
+{
+	ShutDown();
 
 	gui->viewBox->destroy();
 	delete gui->viewBox;
@@ -106,6 +112,8 @@ void App::postInit()
 
 void App::destroyScene()
 {
+	delete dbgdraw;  dbgdraw = 0;
+	
 	scn->mWaterRTT->destroy();
 	
 	DestroyObjects(true);
@@ -140,7 +148,7 @@ void App::destroyScene()
 
 void App::materialCreated(sh::MaterialInstance* m, const std::string& configuration, unsigned short lodIndex)
 {
-	Ogre::Technique* t = static_cast<sh::OgreMaterial*>(m->getMaterial())->getOgreTechniqueForConfiguration (configuration, lodIndex);
+	Technique* t = static_cast<sh::OgreMaterial*>(m->getMaterial())->getOgreTechniqueForConfiguration (configuration, lodIndex);
 
 	if (pSet->shadow_type == Sh_None)
 	{

@@ -44,7 +44,7 @@ CHud::CHud(App* ap1)
 }
 
 CHud::Arrow::Arrow()
-	:node(0),nodeRot(0)
+	:ent(0),node(0),nodeRot(0)
 {	}
 
 
@@ -88,36 +88,6 @@ ManualObject* CHud::Create2D(const String& mat, SceneManager* sceneMgr,
 }
 
 
-//  hud util
-String CHud::StrTime(float time)
-{
-	int min = (int) time / 60;
-	float secs = time - min*60;
-
-	if (time != 0.f)
-	{
-		String ss;
-		ss = toStr(min)+":"+fToStr(secs,2,5,'0');
-		return ss;
-	}else
-		return "-:--.--";
-}
-String CHud::StrTime2(float time)
-{
-	int min = (int) time / 60;
-	float secs = time - min*60;
-
-	if (time != 0.0)
-	{
-		String ss;
-		ss = toStr(min)+":"+fToStr(secs,0,2,'0');
-		return ss;
-	}else
-		return "-:--";
-}
-
-
-
 //  HUD utils
 //---------------------------------------------------------------------------------------------------------------
 void CHud::UpdMiniTer()
@@ -126,7 +96,7 @@ void CHud::UpdMiniTer()
 	Pass* pass = mm->getTechnique(0)->getPass(0);
 	if (!pass)  return;
 	try
-	{	Ogre::GpuProgramParametersSharedPtr par = pass->getFragmentProgramParameters();
+	{	GpuProgramParametersSharedPtr par = pass->getFragmentProgramParameters();
 		bool ter = app->scn->sc->ter;
 		if (par->_findNamedConstantDefinition("showTerrain",false))
 			par->setNamedConstant("showTerrain", pSet->mini_terrain && ter ? 1.f : 0.f);
@@ -143,8 +113,7 @@ Vector3 CHud::projectPoint(const Camera* cam, const Vector3& pos)
 {
 	Vector3 pos2D = cam->getProjectionMatrix() * (cam->getViewMatrix() * pos);
 
-	//Real x = std::min(1.f, std::max(0.f,  pos2D.x * 0.5f + 0.5f ));  // leave on screen edges
-	//Real y = std::min(1.f, std::max(0.f, -pos2D.y * 0.5f + 0.5f ));
+	//std::min(1.f, std::max(0.f,  ));  // leave on screen edges
 	Real x =  pos2D.x * 0.5f + 0.5f;
 	Real y = -pos2D.y * 0.5f + 0.5f;
 	bool out = !cam->isVisible(pos);
@@ -195,18 +164,18 @@ void CHud::bltDumpRecursive(CProfileIterator* pit, int spacing, std::stringstrea
 	float accumulated_time=0,parent_time = pit->Is_Root() ? CProfileManager::Get_Time_Since_Reset() : pit->Get_Current_Parent_Total_Time();
 	int i,j;
 	int frames_since_reset = CProfileManager::Get_Frame_Count_Since_Reset();
-	for (i=0;i<spacing;i++)	os << ".";
+	for (i=0; i<spacing; ++i)  os << ".";
 	os << "----------------------------------\n";
-	for (i=0;i<spacing;i++)	os << ".";
+	for (i=0; i<spacing; ++i)  os << ".";
 	std::string s = "Profiling: "+String(pit->Get_Current_Parent_Name())+" (total running time: "+fToStr(parent_time,3)+" ms) ---\n";
 	os << s;
 	//float totalTime = 0.f;
 
 	int numChildren = 0;
 	
-	for (i = 0; !pit->Is_Done(); i++,pit->Next())
+	for (i = 0; !pit->Is_Done(); ++i,pit->Next())
 	{
-		numChildren++;
+		++numChildren;
 		float current_total_time = pit->Get_Current_Total_Time();
 		accumulated_time += current_total_time;
 		float fraction = parent_time > SIMD_EPSILON ? (current_total_time / parent_time) * 100 : 0.f;
@@ -223,12 +192,12 @@ void CHud::bltDumpRecursive(CProfileIterator* pit, int spacing, std::stringstrea
 	{
 		os << "what's wrong\n";
 	}
-	for (i=0;i<spacing;i++)	os << ".";
+	for (i=0; i<spacing; ++i)  os << ".";
 	double unaccounted=  parent_time > SIMD_EPSILON ? ((parent_time - accumulated_time) / parent_time) * 100 : 0.f;
 	s = "Unaccounted: ("+fToStr(unaccounted,3)+" %) :: "+fToStr(parent_time - accumulated_time,3)+" ms\n";
 	os << s;
 	
-	for (i=0;i<numChildren;i++)
+	for (i=0; i<numChildren; ++i)
 	{
 		pit->Enter_Child(i);
 		bltDumpRecursive(pit, spacing+3, os);

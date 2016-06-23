@@ -8,6 +8,7 @@
 #include "CApp.h"
 #include "CGui.h"
 #include "../road/Road.h"
+#include "../road/PaceNotes.h"
 #include "../ogre/common/MultiList2.h"
 #include "../sdl4ogre/sdlcursormanager.hpp"
 #include "../sdl4ogre/sdlinputwrapper.hpp"
@@ -54,6 +55,7 @@ void CGui::SetGuiFromXmls()
 	svRain1Rate.Upd();	svRain2Rate.Upd();	
 	_Cmb(cmbRain1, sc->rainName);
 	_Cmb(cmbRain2, sc->rain2Name);
+	_Cmb(cmbReverbs, sc->sReverbs);  UpdRevDescr();
 	
 	//  [Terrain]
 	//-----------------------------------------------

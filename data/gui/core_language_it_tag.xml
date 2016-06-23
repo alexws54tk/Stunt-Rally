@@ -40,6 +40,7 @@
 	<Tag name="Prize">Premio</Tag>
 	<Tag name="Hint-2text">Hold [Q] or [W] to flip over the car, when upside down or in jumps. Depending on settings, it may cost some fuel.</Tag>
 	<Tag name="TreeDens">Densità alberi</Tag>
+	<Tag name="Vehicles">Vehicles</Tag>
 	<Tag name="TipVegetGroups">Gruppi di modello vegetazione (si raccomanda di usare da 4 a 6), influisce sulle prestazioni.</Tag>
 	<Tag name="TBPosition">Posizione</Tag>
 	<Tag name="Pipe">Tubo</Tag>
@@ -72,6 +73,7 @@
 	<Tag name="Group">Group</Tag>
 	<Tag name="ChampEndFinished">Hai completato il campionato.</Tag>
 	<Tag name="Negative">Negativo (scuro)</Tag>
+	<Tag name="InputRoadLoopType">cycle loop type (shift - back), keep same on both ends</Tag>
 	<Tag name="PickSetParam">Imposta i parametri, contrassegnati con</Tag>
 	<Tag name="Hint-4">Danno</Tag>
 	<Tag name="Camera">Camera</Tag>
@@ -114,6 +116,7 @@
 	<Tag name="SleepMS">Intervallo sonno [milisec]</Tag>
 	<Tag name="TipTexTiling">Lunghezza texture tiling (meno significa più ripetizoni).</Tag>
 	<Tag name="InputKeyboardEmulation">Emulazione tastiera</Tag>
+	<Tag name="Reverb">Reverberation</Tag>
 	<Tag name="InputMapFlip">Ribalta l'auto</Tag>
 	<Tag name="TBLast">Ultimo</Tag>
 	<Tag name="TrackBankAng">Angoli di piegamento della strada: medio e massimo, in gradi.</Tag>
@@ -130,6 +133,7 @@
 	<Tag name="Materials">Materiali</Tag>
 	<Tag name="InputMapResetGame">Riavvia il gioco</Tag>
 	<Tag name="smoke">fumo</Tag>
+	<Tag name="ConvertAllRpl">Convert All (smaller size)</Tag>
 	<Tag name="MouseCapture">Blocca il mouse</Tag>
 	<Tag name="TipMinimapScrnEditor">Minimap della pista selezionata, vista dall'alto.</Tag>
 	<Tag name="TipTerNoiseOnly">Ignorerà angolo di terreno e gamme di altezza. Il layer apparirà soltanto, se l'altro moltiplicatore di disturbo si fonde a questo.</Tag>
@@ -186,6 +190,7 @@
 	<Tag name="BackMenu">Indietro</Tag>
 	<Tag name="BasedOn">basato su</Tag>
 	<Tag name="UnitKg">kg</Tag>
+	<Tag name="PaceNextVisible">Next shown</Tag>
 	<Tag name="NetLeaveGame">Esci dal gioco</Tag>
 	<Tag name="TipDustInt">Intensità particelle di polvere.</Tag>
 	<Tag name="CameraInfo">Informazioni della camera</Tag>
@@ -309,7 +314,7 @@
 	<Tag name="Effects">Effetti</Tag>
 	<Tag name="WidthSteps">Passi larghezza</Tag>
 	<Tag name="Multiply">Moltiplica</Tag>
-	<Tag name="Hint-6text">Hold [Ctrl] to boost. Depending on the settings, boost is given each lap, regenerates over time, or is infinite.</Tag>
+	<Tag name="FullSoundsInfo">Full sounds info in graphs.</Tag>
 	<Tag name="GrassSway">Ondeggiamento</Tag>
 	<Tag name="TipSpeedSensitiveSteering">Riduci il raggio di sterzata con maggiore velocità.</Tag>
 	<Tag name="HDRTab">HDR</Tag>
@@ -474,6 +479,7 @@
 	<Tag name="DidntPass">Non hai superato la prova</Tag>
 	<Tag name="Road_Cur">Cur</Tag>
 	<Tag name="InputMinimapType">shift-F2,F3 - Prec.,pross. tipo di minimap</Tag>
+	<Tag name="CarDesc_BV">Big extreme bike with advanced electric engine. Extremely fast and light. Also great for exploring other planets. Doesn't handle bad jump landings and bumps.</Tag>
 	<Tag name="TipGrassSwayLen">Lunghezza ondeggiamento dell'erba (scala).</Tag>
 	<Tag name="Road">Strada</Tag>
 	<Tag name="FluidCont">Cont. flusso</Tag>
@@ -574,6 +580,7 @@
 	<Tag name="CopyTrackSourceSame">Source track and current track are the same.</Tag>
 	<Tag name="DisableEdit">Disattiva per modificare</Tag>
 	<Tag name="LS_TER">Caricamento terreno</Tag>
+	<Tag name="Vehicle">Vehicle</Tag>
 	<Tag name="Test">Test</Tag>
 	<Tag name="Continue">Continua</Tag>
 	<Tag name="TipDiffusePrev">Anteprima immagine di diffusione texture.</Tag>
@@ -590,7 +597,7 @@
 	<Tag name="Brush_ShapeN-gon">N-gon</Tag>
 	<Tag name="Brush_CurrentH">Curr.H</Tag>
 	<Tag name="TipDiffuseTex">Diffusione texture (speculare in alfa).</Tag>
-	<Tag name="CarChange">Cambia auto</Tag>
+	<Tag name="CarChange">Vehicle change</Tag>
 	<Tag name="LTrFlDepth">mass. profondità del fluido</Tag>
 	<Tag name="InputToggleVeget">V - Attiva/disattiva la vegetazione</Tag>
 	<Tag name="InputRoadMat">-,=  - materiale di strada/tubo (-1 nascosto)</Tag>
@@ -760,7 +767,7 @@
 	<Tag name="CarDesc_V2">Another hovering spaceship. Slightly heavier and slower but doesn't go sideways that easily.</Tag>
 	<Tag name="Pick">Prendi</Tag>
 	<Tag name="RoadPoint">Punto di strada</Tag>
-	<Tag name="InputRoadLoopChk">7   - segna checkpoint come inizio/fine spirale (per cambiamento camera dell'auto)</Tag>
+	<Tag name="InputRoadLoopChk">7   - change checkpoint as loop begin/end (for car camera change)</Tag>
 	<Tag name="ObjRocks">Rocce</Tag>
 	<Tag name="ShortcutsInfo">Premi con alt per l'accesso rapido della scheda gui (o sotto-scheda). Premi di nuovo per visualizzare le sotto-schede (se presenti).</Tag>
 	<Tag name="AlignWidthMul">Moltiplica larghezza</Tag>
@@ -814,7 +821,7 @@
 	<Tag name="set2">set2</Tag>
 	<Tag name="auto">Auto</Tag>
 	<Tag name="TipWindInflH">Influenza del vento sul modello, scala di altezza.</Tag>
-	<Tag name="NetLocalPort">Porta locale</Tag>
+	<Tag name="ToolsTime">Warning: May take several minutes!</Tag>
 	<Tag name="Bloom">Bloom</Tag>
 	<Tag name="Silver">Argento</Tag>
 	<Tag name="TipWindInflL">Influenza del vento sul modello, scala di lunghezza.</Tag>
@@ -869,6 +876,7 @@
 	<Tag name="ParAmount">Quantità di particelle</Tag>
 	<Tag name="TipFogClr">Colore di fine nebbia quando si guarda sotto il sole.</Tag>
 	<Tag name="speed">velocità</Tag>
+	<Tag name="NetLocalPort">Porta locale</Tag>
 	<Tag name="InputRoadYaw">- rotazione yaw</Tag>
 	<Tag name="WaterRefraction">Rifrazione</Tag>
 	<Tag name="SpecularPowerEm">Potenza emissiva</Tag>
@@ -919,6 +927,7 @@
 	<Tag name="ImpostorDist">Dist. impostori</Tag>
 	<Tag name="Road1SurfOnly">Only 1 road surface</Tag>
 	<Tag name="AlignSmooth">Dim. smooth</Tag>
+	<Tag name="smooth">smooth</Tag>
 	<Tag name="RollingResist">Rolling Resistance</Tag>
 	<Tag name="Hint-12text">Check out other vehicles, we also have hovering spaceships, and tracks on other planets.</Tag>
 	<Tag name="TipGrassDens">Quanto fitta/scarsa sarà l'erba presente sul terreno.</Tag>
@@ -967,6 +976,7 @@
 	<Tag name="TipModelPrev">Anteprima immagine del modello.</Tag>
 	<Tag name="InputRoadEdit">R - modifica la modalità di strada</Tag>
 	<Tag name="jumps">salti</Tag>
+	<Tag name="Road_NotReal">Not Real</Tag>
 	<Tag name="TBBest">Migliore</Tag>
 	<Tag name="Trilinear">Trilineare</Tag>
 	<Tag name="Near">Vicino</Tag>
@@ -1023,6 +1033,7 @@
 	<Tag name="RplLoad">Carica</Tag>
 	<Tag name="UnitBhp">bhp</Tag>
 	<Tag name="CarDesc_M3">Auto molto vecchia con motore a bassa potenza. Non adatta per fare i salti. Da scegliere solo se si vuole guidare lentamente.</Tag>
+	<Tag name="CarDesc_Y7">Extremely fast car. Don't press throttle for too long. Drivable only on fast smooth tracks.</Tag>
 	<Tag name="InpSet_AxisHalfInv">Metà asse invertito</Tag>
 	<Tag name="ScaleTerHeight">Altezza del terreno</Tag>
 	<Tag name="TipTerLHSm">Raggio di altezza smoothing (transizione).</Tag>
@@ -1082,6 +1093,7 @@
 	<Tag name="ColSat">Saturazione</Tag>
 	<Tag name="Collis.">Collis.</Tag>
 	<Tag name="Scenery">Scenario</Tag>
+	<Tag name="Hint-6text">Hold [Ctrl] to boost. Depending on the settings, boost is given each lap, regenerates over time, or is infinite.</Tag>
 	<Tag name="RenameAllOld">Rename All Old</Tag>
 	<Tag name="SC_Autumn">Autunno</Tag>
 	<Tag name="Track">Pista</Tag>
@@ -1097,6 +1109,7 @@
 	<Tag name="InputPaintColor">C - Colora</Tag>
 	<Tag name="InputSubTabSpace">Spazio - cicla sottoschede (shift - indietro)</Tag>
 	<Tag name="TipSurfType">Tipo di superficie, determina il suono.</Tag>
+	<Tag name="InputRoadNotReal">shift-8   - toggle not real (only for decoration, or point move)</Tag>
 	<Tag name="NextStage">Continua lo stage seguente</Tag>
 	<Tag name="NetWaiting">In attesa...</Tag>
 	<Tag name="Peers">Peer</Tag>
@@ -1127,7 +1140,7 @@
 	<Tag name="GraphicsAll_VeryHigh">Molto alta</Tag>
 	<Tag name="SC_Moss">Palude</Tag>
 	<Tag name="Terrain">Terreno</Tag>
-	<Tag name="smooth">smooth</Tag>
+	<Tag name="Pacenotes">Pacenotes</Tag>
 	<Tag name="Pitch">pitch</Tag>
 	<Tag name="Hint-10text">In loops, the camera will automatically switch to an interior view, to make it easier to steer while in a loop.</Tag>
 	<Tag name="InputNextOptTab">F2,F3 - prec.,pross. scheda (alt - sottoschede)</Tag>

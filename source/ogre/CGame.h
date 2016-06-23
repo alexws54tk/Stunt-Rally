@@ -1,7 +1,8 @@
 #pragma once
 #include "common/Gui_Def.h"
 #include "BaseApp.h"
-#include "ReplayGame.h"
+#include "Replay.h"
+#include "ReplayTrk.h"
 #include "../vdrift/cardefs.h"
 #include "CarPosInfo.h"
 
@@ -18,8 +19,6 @@ namespace BtOgre  {  class DebugDrawer;  }
 class CScene;  class CData;  class CInput;  class GraphView;
 class GAME;  class CHud;  class CGui;  class CGuiCom;
 
-const int CarPosCnt = 8;  // size of poses queue
-
 
 class App : public BaseApp,
 			public sh::MaterialListener,
@@ -28,6 +27,7 @@ class App : public BaseApp,
 public:
 	App(SETTINGS* settings, GAME* game);
 	virtual ~App();
+	void ShutDown();
 	
 	CScene* scn;
 	CData* data;  //p
@@ -41,22 +41,22 @@ public:
 	
 	///  Game Cars Data
 	//  new positions info for every CarModel
-	PosInfo carPoses[CarPosCnt][8];  // max 8 cars
-	int iCurPoses[8];  // current index for carPoses queue
+	PosInfo carPoses[CarPosCnt][MAX_CARS];  // max 16cars
+	int iCurPoses[MAX_CARS];  // current index for carPoses queue
 	std::map<int,int> carsCamNum;  // picked camera number for cars
 	
 	void newPoses(float time), newPerfTest(float time);  // vdrift
 	void updatePoses(float time);  // ogre
 	void UpdThr();
 
-	//  replay - full, user saves
-	//  ghost - saved when best lap
-	//  ghplay - ghost ride replay, loaded if was on disk
-	Replay replay, ghost, ghplay;
+	//  replay - full, saved by user
+	//  ghost - saved on best lap
+	//  ghplay - ghost ride replay, loaded if was on disk, replaced when new
+	Replay2 replay, ghost, ghplay;
 	Rewind rewind;  // to take car back in time (after crash etc.)
 	TrackGhost ghtrk;  //  ghtrk - track's ghost
 
-	std::vector<ReplayFrame> frm;  //size:4  //  frm - used when playing replay for hud and sounds
+	std::vector<ReplayFrame2> frm;  //size:16  //  frm - used when playing replay for hud and sounds
 
 	bool isGhost2nd;  // if present (ghost but from other car)
 	std::vector<float> vTimeAtChks;  // track ghost's times at road checkpoints
@@ -91,12 +91,14 @@ public:
 
 	///  create  . . . . . . . . . . . . . . . . . . . . . . . . 
 	Ogre::String resCar, resTrk, resDrv;
-	void CreateCar();
-	void CreateRoad();
+	void CreateCar(), CreateRoad();
+	void CreateObjects(), DestroyObjects(bool clear), ResetObjects();
 
-	void CreateObjects(),DestroyObjects(bool clear);
+	void NewGame(bool force=false);
+	void NewGameDoLoad();  bool IsVdrTrack();  bool newGameRpl;
 
-	void NewGame();  void NewGameDoLoad();  bool IsVdrTrack();  bool newGameRpl;
+	bool dstTrk;  // destroy track, false if same
+	Ogre::String oldTrack;  bool oldTrkUser;
 
 	//  fluids to destroy
 	std::vector<Ogre::String/*MeshPtr*/> vFlSMesh;
@@ -104,8 +106,7 @@ public:
 	std::vector<Ogre::SceneNode*> vFlNd;
 
 	//  vdrift
-	void CreateVdrTrack(std::string strack, class TRACK* pTrack),
-		CreateRacingLine(), CreateRoadBezier();
+	void CreateVdrTrack(std::string strack, class TRACK* pTrack);
 
 	static Ogre::ManualObject* CreateModel(Ogre::SceneManager* sceneMgr, const Ogre::String& mat,
 		class VERTEXARRAY* a, Ogre::Vector3 vPofs, bool flip, bool track=false, const Ogre::String& name="");
@@ -146,8 +147,12 @@ public:
 	PreviewTex prvView,prvRoad,prvTer;  // track tab
 	PreviewTex prvStCh;  // champ,chall stage view
 
+	bool bHideHudBeam;  // hides beam when replay or no road
+	bool bHideHudArr;	// hides arrow when replay,splitscreen
+	bool bHideHudPace;  // hides pacenotes when same or deny by challenge
+	
 	bool bRplPlay,bRplPause, bRplRec, bRplWnd;  //  game
-	int carIdWin, iRplCarOfs;
+	int carIdWin, iRplCarOfs, iRplSkip;
 
 	//  race pos
 	int GetRacePos(float timeCur, float timeTrk, float carTimeMul, bool coldStart, float* pPoints=0);

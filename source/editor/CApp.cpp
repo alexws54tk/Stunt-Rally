@@ -7,23 +7,18 @@
 #include "CGui.h"
 #include "../ogre/common/GuiCom.h"
 #include "../ogre/common/CScene.h"
+#include "../ogre/common/Axes.h"
 #include "../road/Road.h"
 #include "../paged-geom/PagedGeometry.h"
 #include "../ogre/common/WaterRTT.h"
 #include "../ogre/common/RenderBoxScene.h"
 #include "settings.h"
-
+#include "../vdrift/track.h"
 #include "../shiny/Main/Factory.hpp"
 #include "../shiny/Platforms/Ogre/OgrePlatform.hpp"
 #include "../shiny/Platforms/Ogre/OgreMaterial.hpp"
 #include <OgreTerrainPaging.h>
 #include <OgreTerrainGroup.h>
-
-#if OGRE_PLATFORM != OGRE_PLATFORM_WIN32
-	// dir listing
-	#include <dirent.h>
-	#include <sys/types.h>
-#endif
 using namespace Ogre;
 
 
@@ -48,6 +43,7 @@ App::App(SETTINGS* pSet1)
 	,inst(0)
 {
 	pSet = pSet1;
+	Axes::Init();
 	
 	mBrSize[0] = 16.f;	mBrSize[1] = 24.f;	mBrSize[2] = 16.f;	mBrSize[3] = 16.f;
 	mBrIntens[0] = 20.f;mBrIntens[1] = 20.f;mBrIntens[2] = 20.f;mBrIntens[3] = 20.f;
@@ -76,7 +72,7 @@ App::App(SETTINGS* pSet1)
 	gui->scn = scn;
 	gui->data = scn->data;
 	
-	track = new TRACK(std::cout, std::cerr);  //!
+	track = new TRACK();  //!
 }
 
 const Ogre::String App::csBrShape[BRS_ALL] = { "Triangle", "Sinus", "Noise", "Noise2", "N-gon" };  // static
@@ -98,6 +94,12 @@ void App::postInit()
 
 App::~App()
 {
+	DestroyObjects(false);
+
+	delete scn;
+
+	delete mFactory;  //!
+
 	gui->viewBox->destroy();
 	delete gui->viewBox;
 
@@ -107,8 +109,6 @@ App::~App()
 	delete[] pBrFmask;  pBrFmask = 0;
 
 	delete[] mBrushData;
-
-	delete mFactory;  //!
 
 	delete gcom;
 	delete gui;

@@ -5,7 +5,7 @@
 #include "../ogre/common/Def_Str.h"
 
 
-//  set the steering angle to "value", where 1.0 is maximum right lock and -1.0 is maximum left lock.
+//  set the steering angle,  left -1..1 right
 void CARDYNAMICS::SetSteering(const Dbl value1, const float range_mul)
 {
 	/// <><> damage reduce
@@ -14,24 +14,36 @@ void CARDYNAMICS::SetSteering(const Dbl value1, const float range_mul)
 	
 	steerValue = value;
 	Dbl steerangle = value * maxangle * range_mul;  //steering angle in degrees
+	if (numWheels == 2)
+	{	wheel[FRONT_LEFT].SetSteerAngle( steerangle );
+		return;
+	}
+	// ackermann stuff
+	bool ax2 = numWheels >= 6;  // 2 front steering axles // todo: par in .car
+	int ii = ax2 ? 2 : 1;
+	for (int i=0; i < ii; ++i)
+	{
+		WHEEL_POSITION wl = FRONT_LEFT, wr = FRONT_RIGHT, rear = REAR_LEFT;
+		if (i == 1) {  wl = REAR_LEFT;  wr = REAR_RIGHT;  rear = REAR2_LEFT;  }
+		//if (i == 1) {  wl = REAR2_LEFT;  wr = REAR2_RIGHT;  rear = REAR_LEFT;  }  // rear steer // par
 
-	//ackermann stuff
-	Dbl alpha = std::abs( steerangle * PI_d/180.0 );  //outside wheel steering angle in radians
-	Dbl B = wheel[FRONT_LEFT].GetExtendedPosition()[1]
-		  - wheel[FRONT_RIGHT].GetExtendedPosition()[1];  //distance between front wheels
-	Dbl L = wheel[FRONT_LEFT].GetExtendedPosition()[0]
-		  - wheel[REAR_LEFT].GetExtendedPosition()[0];  //distance between front and rear wheels
-	Dbl beta = atan2(1.0, 1.0 / tan(alpha) - B/L );  //inside wheel steering angle in radians
+		Dbl alpha = std::abs( steerangle * PI_d/180.0 );  //outside wheel steering angle in radians
+		Dbl dW = wheel[wl].GetExtendedPosition()[1] - wheel[wr].GetExtendedPosition()[1];  // distance between front wheels
+		Dbl dL = wheel[wl].GetExtendedPosition()[0] - wheel[rear].GetExtendedPosition()[0];  // distance between front and rear wheels
+		if (i==1)  dL *= 2.f;  // par
+		Dbl beta = atan2(1.0, 1.0 / tan(alpha) - dW / fabs(dL) );  //inside wheel steering angle in radians
 
-	Dbl left = 0, right = 0;  // wheel angle
+		Dbl left = 0, right = 0;  // wheel angle
 
-	if (value >= 0)	{	left = alpha;	right = beta;	}
-	else			{	right = -alpha;	left = -beta;	}
+		if (value >= 0)	{	left = alpha;	right = beta;	}
+		else			{	right = -alpha;	left = -beta;	}
 
-	left *= 180.0/PI_d;  right *= 180.0/PI_d;
+		left *= 180.0/PI_d;  right *= 180.0/PI_d;
+		//if (i==1)  {  left *= -1.0;  right *= -1.0;  }  // inversed rear axle steer // par
 
-	wheel[FRONT_LEFT].SetSteerAngle( left );
-	wheel[FRONT_RIGHT].SetSteerAngle( right );
+		wheel[wl].SetSteerAngle( left );
+		wheel[wr].SetSteerAngle( right );
+	}
 }
 
 
@@ -98,8 +110,8 @@ MATHVECTOR<Dbl,3> CARDYNAMICS::UpdateSuspension(int i, Dbl dt)
 
 	//do anti-roll
 	int otheri = i;
-	if (i == 0 || i == 2)	++otheri;
-	else					--otheri;
+	if (i%2 == 0)	++otheri;
+	else			--otheri;
 
 	Dbl antirollforce = suspension[WHEEL_POSITION(i)].GetAntiRollK() *
 	                  ( suspension[WHEEL_POSITION(i)].GetDisplacement() -
@@ -242,13 +254,35 @@ void CARDYNAMICS::ApplyWheelTorque(Dbl dt, Dbl drive_torque, int i, MATHVECTOR<D
 	//MATHVECTOR<Dbl,3> world_wheel_torque(0, -wheel_torque, 0);
 	//wheel_space.RotateVector(world_wheel_torque);
 	//ApplyTorque(world_wheel_torque);
+	
+	
+	///: bike align straight torque from wheels
+	if (numWheels == 2 && fDamage < 100.f)
+	{
+		float dmg = 1.f - 0.5f * fDamage*0.01f;
+		Dbl v = GetSpeedDir() * 1./50.;
+		v = 0.05 + 0.95 * std::min(1.0, v);  //par
+		MATHVECTOR<float,3> dn = GetDownVector();
+
+		for (int w=0; w < numWheels; ++w)
+		if (wheel_contact[w].GetColObj())
+		{
+			MATHVECTOR <float,3> n = wheel_contact[w].GetNormal();
+			MATHVECTOR <float,3> t = dn.cross(n);
+			(-Orientation()).RotateVector(t);
+			Dbl x = t[0] * -1000. * v * 22 * dmg;  ///par in .car ...
+			MATHVECTOR<Dbl,3> v(x,0,0);
+			Orientation().RotateVector(v);
+			ApplyTorque(v);
+		}
+	}
 }
 
 
 void CARDYNAMICS::InterpolateWheelContacts(Dbl dt)
 {
 	MATHVECTOR<float,3> raydir = GetDownVector();
-	for (int i = 0; i < WHEEL_POSITION_SIZE; ++i)
+	for (int i = 0; i < numWheels; ++i)
 	{
 		MATHVECTOR<float,3> raystart = LocalToWorld(wheel[i].GetExtendedPosition());
 		raystart = raystart - raydir * wheel[i].GetRadius();
@@ -294,7 +328,7 @@ void CARDYNAMICS::CalculateDriveTorque(Dbl * wheel_drive_torque, Dbl clutch_torq
 	Dbl driveshaft_torque = transmission.GetTorque( clutch_torque );
 	assert( !isnan(driveshaft_torque) );
 
-	for (int i = 0; i < WHEEL_POSITION_SIZE; ++i)
+	for (int i = 0; i < numWheels; ++i)
 		wheel_drive_torque[i] = 0;
 
 	if (drive == RWD)
@@ -318,9 +352,15 @@ void CARDYNAMICS::CalculateDriveTorque(Dbl * wheel_drive_torque, Dbl clutch_torq
 		wheel_drive_torque[FRONT_RIGHT] = diff_front.GetSide2Torque();
 		wheel_drive_torque[REAR_LEFT] = diff_rear.GetSide1Torque();
 		wheel_drive_torque[REAR_RIGHT] = diff_rear.GetSide2Torque();
+		/*if (numWheels > 4) {  //todo: 6x6, 8x8 drive, diffs ..
+		wheel_drive_torque[REAR2_LEFT] = diff_rear.GetSide1Torque();
+		wheel_drive_torque[REAR2_RIGHT] = diff_rear.GetSide2Torque();  }
+		/*if (numWheels > 6) {
+		wheel_drive_torque[REAR3_LEFT] = diff_rear.GetSide1Torque();
+		wheel_drive_torque[REAR3_RIGHT] = diff_rear.GetSide2Torque();  }/**/
 	}
 
-	for (int i = 0; i < WHEEL_POSITION_SIZE; ++i)  assert(!isnan( wheel_drive_torque[WHEEL_POSITION(i)] ));
+	for (int i = 0; i < numWheels; ++i)  assert(!isnan( wheel_drive_torque[WHEEL_POSITION(i)] ));
 }
 
 Dbl CARDYNAMICS::CalculateDriveshaftSpeed()
@@ -328,14 +368,16 @@ Dbl CARDYNAMICS::CalculateDriveshaftSpeed()
 	Dbl driveshaft_speed = 0.0;
 	Dbl whFL = wheel[FRONT_LEFT].GetAngularVelocity();
 	Dbl whFR = wheel[FRONT_RIGHT].GetAngularVelocity();
+	if (drive == FWD)
+	{	driveshaft_speed = diff_front.CalculateDriveshaftSpeed( whFL, whFR );
+		return driveshaft_speed;
+	}	
 	Dbl whRL = wheel[REAR_LEFT].GetAngularVelocity();
 	Dbl whRR = wheel[REAR_RIGHT].GetAngularVelocity();
-	for (int i = 0; i < 4; ++i)  assert(!isnan( wheel[WHEEL_POSITION(i)].GetAngularVelocity() ));
+	for (int i = 0; i < numWheels; ++i)  assert(!isnan( wheel[WHEEL_POSITION(i)].GetAngularVelocity() ));
 
 	if (drive == RWD)
 		driveshaft_speed = diff_rear.CalculateDriveshaftSpeed( whRL, whRR );
-	else if (drive == FWD)
-		driveshaft_speed = diff_front.CalculateDriveshaftSpeed( whFL, whFR );
 	else if (drive == AWD)
 		driveshaft_speed = diff_center.CalculateDriveshaftSpeed(
 		                   diff_front.CalculateDriveshaftSpeed( whFL, whFR ),
@@ -345,16 +387,18 @@ Dbl CARDYNAMICS::CalculateDriveshaftSpeed()
 
 Dbl CARDYNAMICS::CalculateDriveshaftRPM() const
 {
+	for (int i = 0; i < numWheels; ++i)  assert(!isnan( wheel[WHEEL_POSITION(i)].GetAngularVelocity() ));
 	Dbl driveshaft_speed = 0.0;
 	Dbl whFL = wheel[FRONT_LEFT].GetAngularVelocity();
 	Dbl whFR = wheel[FRONT_RIGHT].GetAngularVelocity();
+	if (drive == FWD)
+	{	driveshaft_speed = diff_front.GetDriveshaftSpeed( whFL, whFR );
+		return transmission.GetClutchSpeed( driveshaft_speed ) * 30.0 / PI_d;
+	}
 	Dbl whRL = wheel[REAR_LEFT].GetAngularVelocity();
 	Dbl whRR = wheel[REAR_RIGHT].GetAngularVelocity();
-	for (int i = 0; i < 4; ++i)  assert(!isnan( wheel[WHEEL_POSITION(i)].GetAngularVelocity() ));
 	if (drive == RWD)
 		driveshaft_speed = diff_rear.GetDriveshaftSpeed( whRL, whRR );
-	else if (drive == FWD)
-		driveshaft_speed = diff_front.GetDriveshaftSpeed( whFL, whFR );
 	else if (drive == AWD)
 	{
 		Dbl front = diff_front.GetDriveshaftSpeed( whFL, whFR );
@@ -368,14 +412,15 @@ Dbl CARDYNAMICS::GetSpeedMPS() const
 {
 	Dbl whFL = wheel[FRONT_LEFT].GetAngularVelocity();
 	Dbl whFR = wheel[FRONT_RIGHT].GetAngularVelocity();
+	if (drive == FWD)
+		return (whFL+whFR) * 0.5 * wheel[FRONT_LEFT].GetRadius();
+
 	Dbl whRL = wheel[REAR_LEFT].GetAngularVelocity();
 	Dbl whRR = wheel[REAR_RIGHT].GetAngularVelocity();
-	for (int i = 0; i < 4; ++i)  assert (!isnan(wheel[WHEEL_POSITION(i)].GetAngularVelocity()));
+	for (int i = 0; i < numWheels; ++i)  assert (!isnan(wheel[WHEEL_POSITION(i)].GetAngularVelocity()));
 
 	if (drive == RWD)
 		return (whRL+whRR) * 0.5 * wheel[REAR_LEFT].GetRadius();
-	else if (drive == FWD)
-		return (whFL+whFR) * 0.5 * wheel[FRONT_LEFT].GetRadius();
 	else if (drive == AWD)
 		return ( (whRL+whRR) * 0.5 * wheel[REAR_LEFT].GetRadius() +
 		         (whFL+whFR) * 0.5 * wheel[FRONT_LEFT].GetRadius() ) *0.5;
@@ -478,7 +523,7 @@ Dbl CARDYNAMICS::AutoClutch(Dbl last_clutch, Dbl dt) const
 
 	//take into account locked brakes
 	bool willlock(true);
-	for (int i = 0; i < WHEEL_POSITION_SIZE; i++)
+	for (int i = 0; i < numWheels; ++i)
 	{
 		if (WheelDriven(WHEEL_POSITION(i)))
             willlock = willlock && brake[i].WillLock();
@@ -572,14 +617,15 @@ int CARDYNAMICS::NextGear() const
 	int gear = transmission.GetGear();
 
 	Dbl avg_slide = 0.;  float avg_whH = 0.f;
-	for (int i=0; i < 4; ++i)
+	for (int i=0; i < numWheels; ++i)
 	{
 		Dbl sl = fabs(wheel[i].slips.slide);
 		avg_slide += sl;
 		avg_whH += whH[i];
 	}
 	bool allow = true;
-	avg_slide *= 0.25;  avg_whH *= 0.25f;
+	float nw = 1.f / numWheels;
+	avg_slide *= nw;  avg_whH *= nw;
 	if (avg_slide > 1.0)  //par?
 		allow = false;
 
@@ -634,7 +680,7 @@ void CARDYNAMICS::DoTCS(int i, Dbl suspension_force)
 		//see if we're spinning faster than the rest of the wheels
 		Dbl maxspindiff = 0;
 		Dbl myrotationalspeed = wheel[WHEEL_POSITION(i)].GetAngularVelocity();
-		for ( int i2 = 0; i2 < WHEEL_POSITION_SIZE; ++i2)
+		for ( int i2 = 0; i2 < numWheels; ++i2)
 		{
 			Dbl spindiff = myrotationalspeed - wheel[WHEEL_POSITION(i2)].GetAngularVelocity();
 			if (spindiff < 0)  spindiff = -spindiff;
@@ -689,7 +735,7 @@ void CARDYNAMICS::DoABS(int i, Dbl suspension_force)
 	if (brakesetting > braketresh)
 	{
 		Dbl maxspeed = 0;
-		for (int i2 = 0; i2 < WHEEL_POSITION_SIZE; ++i2)
+		for (int i2 = 0; i2 < numWheels; ++i2)
 		{
 			if (wheel[WHEEL_POSITION(i2)].GetAngularVelocity() > maxspeed)
 				maxspeed = wheel[WHEEL_POSITION(i2)].GetAngularVelocity();

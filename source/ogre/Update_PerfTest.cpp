@@ -15,13 +15,12 @@ using namespace Ogre;
 //  perf log car vel
 void App::PerfLogVel(CAR* pCar, float time)
 {
-	pGame->info_output << fToStr(time,2,5) << "s, " << fToStr(pCar->GetSpeed()*3.6f, 1,5) << " kmh, gear " << pCar->GetGear() << ", rpm " << fToStr(pCar->GetEngineRPM(),0,4) \
+	LogO(fToStr(time,2,5) +"s, "+ fToStr(pCar->GetSpeed()*3.6f, 1,5) +" kmh, gear "+ toStr(pCar->GetGear()) +", rpm "+ fToStr(pCar->GetEngineRPM(),0,4));
 		//<< ", clu " << fToStr(pCar->GetClutch(), 1,4)
 		//<< ", sli " << fToStr(pCar->dynamics.tire[0].slide, 1,4)
 		//<< ", slp " << fToStr(pCar->dynamics.tire[1].slip, 1,4)
 		//<< ", f " << pCar->GetWheelContact(WHEEL_POSITION(0)).surface->friction
 		// !... downforce, drag
-		<< std::endl;
 }
 
 
@@ -47,21 +46,22 @@ void App::newPerfTest(float time)
 	
 	static std::vector<float> tkmh,ttim;
 	static float kmhP=0.f;
+	CARDYNAMICS& cd = pCar->dynamics;
 
 	switch (iPerfTestStage)
 	{
 		case PT_StartWait:
 		{
 			//  wheels still count
-			int whStill = pCar->dynamics.vtype == V_Spaceship ? 4 : 0;
-			for (int i=0; i<4; ++i)
+			int whStill = cd.vtype == V_Spaceship ? 4 : 0;
+			for (int i=0; i < cd.numWheels; ++i)
 			{
 				WHEEL_POSITION wp = (WHEEL_POSITION)i;
 				bool inAir = pCar->GetWheelContact(wp).GetColObj() == NULL;
-				const CARSUSPENSION& susp = pCar->dynamics.GetSuspension(wp);
+				const CARSUSPENSION& susp = cd.GetSuspension(wp);
 				if (!inAir && susp.GetVelocity() < 0.001)  ++whStill;
 			}
-			if (whStill == 4 && iLoad1stFrames == -2)  //end
+			if (whStill == cd.numWheels && iLoad1stFrames == -2)  //end
 			{
 				iPerfTestStage = PT_Accel;  ti = 0.f;
 				posSt = pCar->GetPosition();  timeQM = 0.f;
@@ -84,7 +84,7 @@ void App::newPerfTest(float time)
 			{	timeQM = ti;  // will be 0 if didnt drive that far
 				velAtQM = kmh;
 			}
-			MATHVECTOR<Dbl,3> aero = pCar->dynamics.GetTotalAero();
+			MATHVECTOR<Dbl,3> aero = cd.GetTotalAero();
 			Dbl drag = -aero[0], down = -aero[2];
 
 			//  stats  ---------
@@ -129,8 +129,8 @@ void App::newPerfTest(float time)
 				
 				//  engine stats
 				//------------------------
-				//pGame->info_output << std::string("====  CAR engine  ====\n");
-				const CARENGINE& eng = pCar->dynamics.engine;
+				//LogO("====  CAR engine  ====");
+				const CARENGINE& eng = cd.engine;
 				float maxTrq = 0.f, maxPwr = 0.f;
 				int rpmMaxTq = 0, rpmMaxPwr = 0;
 
@@ -140,19 +140,18 @@ void App::newPerfTest(float time)
 					if (tq > maxTrq)  {  maxTrq = tq;  rpmMaxTq = r;  }
 					if (pwr > maxPwr)  {  maxPwr = pwr;  rpmMaxPwr = r;  }
 					//if (r % 100 == 0)
-					//	pGame->info_output << "rpm: "+fToStr(r,0,4)+" Nm:"+fToStr(tq,0,4)+" bhp:"+fToStr(pwr*1.341,0,4)+"\n";
+					//	LogO("rpm: "+fToStr(r,0,4)+" Nm:"+fToStr(tq,0,4)+" bhp:"+fToStr(pwr*1.341,0,4));
 				}
 
 				//  summary  gui txt
 				//------------------------------------------------
 				maxPwr *= 1.341;  // kW to bhp
 				Dbl m = eng.real_pow_tq_mul;  // factor to match real cars data
-				CARDYNAMICS& cd = pCar->dynamics;
 				const MATHVECTOR<Dbl,3>& com = cd.center_of_mass;
 				Dbl bhpPerTon = maxPwr / (pCar->GetMass() * 0.001);
 
 				//  com ratio
-				Dbl whf = cd.wheel[0].GetExtendedPosition()[0], whr = cd.wheel[2].GetExtendedPosition()[0];
+				Dbl whf = cd.wheel[0].GetExtendedPosition()[0], whr = cd.wheel[cd.numWheels==2?1:2].GetExtendedPosition()[0];
 				float comFrontPercent = (com[0]+whf) / (whf-whr)*100.f;
 				MATRIX3 <Dbl> inertia = cd.body.GetInertiaConst();
 				float inert[3];  inert[0] = inertia[0];  inert[1] = inertia[4];  inert[2] = inertia[8];  
@@ -179,7 +178,7 @@ void App::newPerfTest(float time)
 					"Stop time 100..0 kmh:  "+fToStr(tMaxTo0-tMaxTo100,2,5)+"\n"+
 					"Stop time  60..0 kmh:  "+fToStr(tMaxTo0-tMaxTo60,2,5)+"\n";
 				
-				//pGame->info_output << std::string("====  CAR Perf test summary  ====\n") + sResult + "====\n";
+				//LogO("====  CAR Perf test summary  ====\n" + sResult + "====");
 				gui->edPerfTest->setCaption(sResult);
 				mWndTweak->setVisible(true);
 				gui->tabTweak->setIndexSelected(3);
@@ -192,7 +191,7 @@ void App::newPerfTest(float time)
 					bool user = gui->GetCarPath(&path, &pathUser, &pathUserDir, pSet->game.car[0], scn->sc->asphalt);
 					path = pathUserDir + pCar->pCarM->sDirname + "_stats.xml";
 					
-					PATHMANAGER::CreateDir(pathUserDir, pGame->error_output);
+					PATHMANAGER::CreateDir(pathUserDir);
 
 					TiXmlDocument xml;	TiXmlElement root("perf");
 					std::string s;
@@ -207,23 +206,23 @@ void App::newPerfTest(float time)
 						co.SetAttribute("frontPercent",	toStrC(comFrontPercent) );
 						s = fToStr(com[0],3,5)+" "+fToStr(com[1],3,5)+" "+fToStr(com[2],3,5);
 						co.SetAttribute("pos",		s.c_str());
-						co.SetAttribute("whf",		toStrC(Ogre::Real(whf)));
-						co.SetAttribute("whr",		toStrC(Ogre::Real(whr)));
+						co.SetAttribute("whf",		toStrC(Real(whf)));
+						co.SetAttribute("whr",		toStrC(Real(whr)));
 					root.InsertEndChild(co);
 
 					TiXmlElement tq("torque");
-						tq.SetAttribute("max",		toStrC(Ogre::Real(maxTrq*m)) );
+						tq.SetAttribute("max",		toStrC(Real(maxTrq*m)) );
 						tq.SetAttribute("rpm",		toStrC(rpmMaxTq) );
-						tq.SetAttribute("mul",		toStrC(Ogre::Real(m)) );
+						tq.SetAttribute("mul",		toStrC(Real(m)) );
 					root.InsertEndChild(tq);
 
 					TiXmlElement pw("power");
-						pw.SetAttribute("max",		toStrC(Ogre::Real(maxPwr*m)) );
+						pw.SetAttribute("max",		toStrC(Real(maxPwr*m)) );
 						pw.SetAttribute("rpm",		toStrC(rpmMaxPwr) );
 					root.InsertEndChild(pw);
 
 					TiXmlElement bh("bhpPerTon");
-						bh.SetAttribute("val",		toStrC(Ogre::Real(bhpPerTon)) );
+						bh.SetAttribute("val",		toStrC(Real(bhpPerTon)) );
 					root.InsertEndChild(bh);
 
 					TiXmlElement tp("top");

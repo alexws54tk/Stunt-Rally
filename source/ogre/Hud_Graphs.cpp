@@ -4,10 +4,15 @@
 #include "CGui.h"
 #include "../vdrift/game.h"
 #include "../vdrift/car.h"
+#include "../sound/SoundBaseMgr.h"
+#include "../sound/SoundMgr.h"
+#include "../sound/SoundBase.h"
+#include "../road/PaceNotes.h"
 #include "common/data/SceneXml.h"
 #include "common/CScene.h"
 #include "common/GraphView.h"
 #include "SplitScreen.h"
+#include "CarModel.h"
 #include <OgreSceneManager.h>
 #include <OgreRenderWindow.h>
 using namespace Ogre;
@@ -51,14 +56,16 @@ void App::CreateGraphs()
 	if (!graphs.empty())  return;
 	SceneManager* scm = mSplitMgr->mGuiSceneMgr;
 	bool tireEdit = false;
+	GraphView* gv;
+	int nWh = carModels[0]->numWheels, i,j,c,w,n;
 
 	switch (pSet->graphs_type)
 	{
 	case Gh_Fps:  /// fps
-		for (int i=0; i < 2; ++i)
+		for (i=0; i < 2; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = i;
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i;
 			gv->Create(400, "graph"+toStr(c+1), i==0 ? 0.4f : 0.f);
 			if (i == 0)
 			{	gv->CreateGrid(4,0, 0.7f, 1.0f);
@@ -71,11 +78,11 @@ void App::CreateGraphs()
 		}	break;
 
 	case Gh_CarAccelG:  /// car accel
-		for (int i=0; i < 3; ++i)
+		for (i=0; i < 3; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+			gv = new GraphView(scm,mWindow,mGui);
 			const int t[3] = {0,1,2};
-			int c = t[i];
+			c = t[i];
 			gv->Create(256, "graph"+toStr(c+1), i==0 ? 0.45f : 0.f);
 			if (i == 0)  gv->CreateGrid(6,0, 0.7f, 1.0f);
 			switch(i)
@@ -91,11 +98,11 @@ void App::CreateGraphs()
 		}	break;
 		
 	case Gh_CamBounce:   /// cam bounce
-		for (int i=0; i < 3; ++i)
+		for (i=0; i < 3; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+			gv = new GraphView(scm,mWindow,mGui);
 			const int t[3] = {0,1,2};
-			int c = t[i];
+			c = t[i];
 			gv->Create(256, "graph"+toStr(c+1), i==0 ? 0.4f : 0.f);
 			if (i == 0)  gv->CreateGrid(6,0, 0.7f, 1.0f);
 			switch(i)
@@ -111,10 +118,10 @@ void App::CreateGraphs()
 		}	break;
 
 	case Gh_BulletHit:  /// bullet hit
-		for (int i=0; i < 6; ++i)
+		for (i=0; i < 6; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = i%6;  /*clr*/
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i%6;  /*clr*/
 			gv->Create(256/*len*/, "graph"+toStr(c+1), i==0||i==2 ? 0.52f : 0.f/*alpha*/);
 			switch(i)
 			{
@@ -134,56 +141,64 @@ void App::CreateGraphs()
 		}	break;
 
 	case Gh_Sound:  /// sound
-		for (int i=0; i < 4; ++i)
+		for (i=0; i < 5; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = i%2*2;
-			gv->Create(i < 2 ? 512 : 2*512, "graph"+toStr(c+1), c>0 ? 0.f : 0.4f);
-			if (c == 0)
-				gv->CreateGrid(2,1, 0.4f, 0.5f);  //64,256
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i%3;  String t;
+			gv->Create(1, "graphA5", i>=3 ? 0.30f : i>0 ? 0.f : 0.3f);
 			switch(i)
 			{
-				case 0:  gv->CreateTitle("Sound vol ampl.",	c, 0.0f,-2, 24);  break;
-				case 1:  gv->CreateTitle("pan: L up R dn",	c, 0.0f, 2, 24);  break;
-				case 2:  gv->CreateTitle("wave L",			c, 0.0f,-2, 24);  break;
-				case 3:  gv->CreateTitle("wave R",			c, 0.0f, 2, 24);  break;
+				case 0:  gv->CreateTitle(t,	c, 0.1f,-2, 20,2,1);  break;
+				case 1:  gv->CreateTitle(t,	c, 0.1f,-3, 22,3,1);  break;
+				case 2:  gv->CreateTitle(t,	c, 0.1f, 2, 24,2,1);  break;
+				case 3:  gv->CreateTitle(t,	8, 0.1f,-2, 18,256,1);  break;
+				case 4:  gv->CreateTitle(t,	6, 0.1f,-2, 18,256,1);  break;
 			}
-			if (i < 2)	gv->SetSize(0.00f, 0.24f, 0.4f, 0.25f);
-			else		gv->SetSize(0.60f, 0.24f, 0.4f, 0.25f);
+			if (i==4)	gv->SetSize(0.06f, 0.15f, 0.09f, 0.8f); else
+			if (i==3)	gv->SetSize(0.00f, 0.15f, 0.06f, 0.8f);
+			else		gv->SetSize(0.00f, 0.05f, 0.15f, 0.1f);
 
+			gv->SetVisible(pSet->show_graphs && (i < 3 || pSet->sounds_info));
+			graphs.push_back(gv);
+		}	break;
+		
+	case Gh_Checks:  /// checkpoints
+		for (i=0; i < 2; ++i)
+		{
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i%3;  String t;
+			gv->Create(1, "graphA5", i>0 ? 0.f : 0.4f);
+			switch(i)
+			{
+				case 0:  gv->CreateTitle(t,	c, 0.1f,-2, 22,2,1);  break;
+				case 1:  gv->CreateTitle(t,	c, 0.1f,-3, 22,4,1);  break;
+			}
+			gv->SetSize(0.00f, 0.05f, 0.15f, 0.1f);
+			
 			gv->SetVisible(pSet->show_graphs);
 			graphs.push_back(gv);
 		}	break;
-
+		
 	case Gh_TireSlips:  /// tire
 	case Gh_Suspension:	 /// susp
-		for (int i=0; i < 8; ++i)
+		for (i=0; i < nWh * 2; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = i%4;
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i % nWh;  bool w2 = nWh == 2, g1 = i/nWh;
 			gv->Create(256/*512*/, "graph"+toStr(c+1), c>0 ? 0.f : (i < 14 ? 0.44f : 0.62f));
 			if (c == 0)
 				gv->CreateGrid(10,1, 0.2f, 0.4f);
 
-			const static float x0 = 0.0f, x1 = 0.07f, x2 = 0.08f;
-			const static char* cgt[8][2] = {
-				// Front ^ Back/Rear v  Left L< Right R>
-				 "FL [^"				,"FL <^"
-				,"^] FR   longit |"		,"^> FR  suspension pos"
-				,"BL [_"				,"BL <v"
-				,"_] BR   Tire slip"	,"v> BR"
-				,"FL [^"				,"FL <^"
-				,"^] FR   lateral --"	,"^> FR  susp vel"
-				,"BL [_"				,"BL <v"
-				,"_] BR   Tire slide"	,"v> BR"	};
-
 			int t = pSet->graphs_type == Gh_TireSlips ? 0 : 1;
-			float x = i%2==0 ? x0 : (t ? x2 : x1);  char y = i/2%2==0 ? -2 : -3;
-			gv->CreateTitle(cgt[i][t], c, x, y, 24);
+			float x = i%2==0 /*|| w2 */? 0.f : 0.04f;
+			char y = i%nWh/2 + (4-nWh/2);
+			gv->CreateTitle(String("|") + (c!=1 ? "" : String("  ")+
+				(t==0 ? (g1 ? "Tire slide" : "Tire slip") :
+						(g1 ? "susp vel" : "suspension pos")) )
+				, c, x, -y, 24);
 
-			if (i < 4)	gv->SetSize(0.00f, 0.24f, 0.4f, 0.25f);
-			//else		gv->SetSize(0.60f, 0.24f, 0.4f, 0.25f);  // right
-			else		gv->SetSize(0.00f, 0.50f, 0.4f, 0.25f);  // top
+			if (i < nWh) gv->SetSize(0.00f, 0.24f, 0.4f, 0.25f);
+			else         gv->SetSize(0.00f, 0.50f, 0.4f, 0.25f);  // top
 			
 			gv->SetVisible(pSet->show_graphs);
 			graphs.push_back(gv);
@@ -191,11 +206,11 @@ void App::CreateGraphs()
 
 
 	case Gh_TireEdit:  /// tires edit pacejka
-		for (int j=0; j < 4; ++j)
-		for (int i=0; i < TireNG; ++i)
+		for (j=0; j < 4; ++j)  // lat,long x2 for ref
+		for (i=0; i < TireNG; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = i;  bool b = j==1 || j==3, r = j >= 2;
+			gv = new GraphView(scm,mWindow,mGui);
+			c = i;  bool b = j==1 || j==3, r = j >= 2;
 			gv->Create(TireLenG,
 				String("graph") + (b?"B":"A") + toStr(c*3/2) /*+ (r?"r":"")*/,
 				i==0 && !b ? 0.4f : 0.f, true);
@@ -217,18 +232,21 @@ void App::CreateGraphs()
 		break;
 
 	case Gh_Tires4Edit:  /// all tires pacejka vis,edit
-		for (int i=0; i < TireNG * 2; ++i)
+		for (i=0; i < nWh * 2; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
-			int c = 2;  bool b = i >= TireNG;
+			gv = new GraphView(scm,mWindow,mGui);
+			c = 2;  bool b = i >= nWh;
 			gv->Create(TireLenG, String("graph")+(b?"B":"A")+toStr(c), b ? 0.f : 0.3f, true);
 			gv->CreateGrid(6,6, 0.2f, 0.4f);
 			if (b)	gv->CreateTitle("", 5+8+1 +2, 0.f, -2, 24);
 			else	gv->CreateTitle("", 5+1   +2, 1.f,-2, 24);
 			
 			const float sx = 0.175f, sy = 0.245f, m = 1.f; //0.97f;
-			gv->SetSize((i%2   == 0 ? 0.f : sx),
-						(i/2%2 == 1 ? 0.f : sy) + 0.41f, sx*m, sy*m);
+			if (nWh==2)
+				gv->SetSize(0.f,(i%2==1 ? 0.f : sy) + 0.41f, sx*m, sy*m);
+			else
+				gv->SetSize((i%2   == 0 ? 0.f : sx),
+							(i/2%2 == 1 ? 0.f : sy) + 0.41f, sx*m, sy*m);
 
 			gv->SetVisible(pSet->show_graphs);
 			graphs.push_back(gv);
@@ -238,10 +256,10 @@ void App::CreateGraphs()
 	
 
 	case Gh_TorqueCurve:  /// torque curves, gears
-		for (int w=0; w < 6*2; ++w)
+		for (w=0; w < 6*2; ++w)
 		{
-			int i = w % 6, n = w / 6;
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+			i = w % 6;  n = w / 6;
+			gv = new GraphView(scm,mWindow,mGui);
 			gv->Create(512, String("graph")+(n>0 ? "B":"A")+toStr(i), w>0 ? 0.f : 0.5f, true);
 			if (n == 0)
 			if (i == 0)	{   gv->CreateGrid(4,5, 0.f, 0.5f);
@@ -258,9 +276,9 @@ void App::CreateGraphs()
 		}	break;
 		
 	case Gh_Engine:  /// engine torque, power
-		for (int i=0; i < 2; ++i)
+		for (i=0; i < 2; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+			gv = new GraphView(scm,mWindow,mGui);
 			gv->Create(512, String("graph")+toStr(i*3+1), i>0 ? 0.f : 0.4f, true);
 			if (i == 0)
 			{	gv->CreateGrid(6,6, 0.f, 0.6f);
@@ -276,9 +294,9 @@ void App::CreateGraphs()
 		}	break;
 		
 	case Gh_Clutch:
-		for (int i=0; i < 4; ++i)
+		for (i=0; i < 4; ++i)
 		{
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+			gv = new GraphView(scm,mWindow,mGui);
 			gv->Create(160, String("graph")+toStr(3-i), i==0 ? 0.43f : i==3 ? 0.3f : 0.f);
 			if (i == 3)
 			{	gv->CreateGrid(6,1, 0.f, 0.3f);
@@ -299,9 +317,9 @@ void App::CreateGraphs()
 		}	break;
 
 	case Gh_Diffs:
-		for (int i=0; i < 3*2; ++i)
-		{	int n = i/3, c = i%3;
-			GraphView* gv = new GraphView(scm,mWindow,mGui);
+		for (i=0; i < 3*2; ++i)
+		{	n = i/3;  c = i%3;
+			gv = new GraphView(scm,mWindow,mGui);
 			gv->Create(256, String("graph")+(n?"B":"A")+toStr(c+2), n > 0 ? 0.f :  c<2 ? 0.4f : 0.3f);
 			if (i == 2)
 			{	gv->CreateGrid(4,1, 0.f, 0.3f);
@@ -327,7 +345,7 @@ void App::CreateGraphs()
 	if (tireEdit)
 	{
 		//  edit vals area
-		GraphView* gv = new GraphView(scm,mWindow,mGui);
+		gv = new GraphView(scm,mWindow,mGui);
 		gv->Create(1, "graphA6", 0.4f);  gv->CreateTitle("", 5+1, 0.f, -2, 24, 30/*, true*/);
 		gv->SetSize(0.73f, 0.48f, 0.07f, 0.44f);
 		gv->SetVisible(pSet->show_graphs);
@@ -350,30 +368,55 @@ void App::GraphsNewVals()				// Game
 	switch (pSet->graphs_type)
 	{
 	case Gh_Sound:  /// sound  vol,pan, wave L,R
-	if (gsi >= 4)
-	{	float minL=1.f,maxL=-1.f,minR=1.f,maxR=-1.f;
-		//for (int i=0; i < 4*512; i+=4)  if (sound.Init(/*2048*/512
-		for (int i=0; i < 2*512; ++i)
-		{
-			//  wave osc
-			float l = pGame->sound.waveL[i] / 32767.f * 0.5f + 0.5f;
-			float r = pGame->sound.waveR[i] / 32767.f * 0.5f + 0.5f;
-			//if (i%4==0)
-			{
-				graphs[2]->AddVal(l);  // L cyan  R yellow
-				graphs[3]->AddVal(r);
-			}
-			//  amplutude
-			if (l > maxL)  maxL = l;  if (l < minL)  minL = l;
-			if (r > maxR)  maxR = r;  if (r < minR)  minR = r;
+	if (gsi >= 5)
+	{
+		SoundBaseMgr* snd = pGame->snd->sound_mgr;
+		graphs[0]->UpdTitle("Sounds Info\n"+snd->sReverb);
+		graphs[1]->UpdTitle("\nbuf: "+toStr(snd->buffers_used_max)+" /"+toStr(SoundBaseMgr::MAX_BUFFERS)+"\n"+
+							"src: "+toStr(snd->sources_use)+" /"+toStr(snd->hw_sources_num));
+		graphs[2]->UpdTitle("hw: "+iToStr(snd->hw_sources_use,2)+" /"+toStr(SoundBaseMgr::HW_SRC));
+		
+		bool info = pSet->sounds_info;
+		if (info)
+		{	String s3,s4,ss;
+			for (size_t i=0; i < snd->sources.size(); ++i)
+			{	const SoundBase* sb = snd->sources[i];
+				if (sb)
+				{	ss = sb->name.substr(0,4);
+					//if (/*ss!="asph" && */ss!="grav" && ss!="gras" /*&& ss!="cras"/**/)
+					if (ss!="asph" && ss!="grav" /*&& ss!="gras" /*&& ss!="cras"/**/)
+					{
+						//s3 += String(" ")+(sb->is2D?"2 ":"   ")+(sb->loop?"L":" ");
+						for (int n = sb->name.length(); n < 15; ++n)  s3+=" ";
+						s3 += sb->name;
+					
+						//s4 += " "+iToStr(sb->source_id,2);
+						s4 += " "+(sb->audibility == 0.f ? "......." : fToStr(sb->audibility,2,4));
+						s4 += " "+(sb->hw_id == -1 ? "..." : fToStr(sb->hw_id,0,2,'0'));
+						//s4 += "  b"+(toStr(sb->buffer));
+						//s4 += String(" ")+(sb->enabled?"Y ":"N ")+(sb->should_play?"PP ":"OO ");
+						s4 += String(" ")+(sb->should_play?"p ":".. ");
+						s4 += " "+(sb->gain ==0.f ? "":fToStr(sb->gain,2,4));
+						s4 += " "+(sb->pitch==1.f ? "":fToStr(sb->pitch,2,4));
+						s3 += "\n";  s4 += "\n";
+			}	}	}
+			graphs[3]->UpdTitle(s3);  graphs[4]->UpdTitle(s4);
 		}
-		float al = (maxL-minL), ar = (maxR-minR);
-		graphs[0]->AddVal((al+ar)*0.5f);       // vol ampl  cyan
-		graphs[1]->AddVal((al-ar)*0.5f+0.5f);  // pan  yellow  ^L 1  _R 0
+		graphs[3]->SetVisible(info);  graphs[4]->SetVisible(info);
 	}	break;
 
+	case Gh_Checks:  /// checkpoints
+		if (gsi >= 2 && !carModels.empty())
+		{
+			CarModel* cm = carModels[0];
+			graphs[0]->UpdTitle("Pacenotes\n"
+				"#E0F0FF cur "+toStr(scn->pace->iCur)+"  all "+toStr(scn->pace->iAll)+"  st "+toStr(scn->pace->iStart));
+			graphs[1]->UpdTitle("\nCheckpoints  #F0F0D0 in "+iToStr(cm->iInChk,2)+(cm->bInSt?" inSt":"")+"\n"+
+				" cur "+iToStr(cm->iCurChk,2)+" next "+iToStr(cm->iNextChk,2)+" all "+iToStr(cm->iNumChks,2));
+		}	break;
+		
 	case Gh_Fps:  /// fps
-	if (gsi >= 1)
+	if (gsi >= 2)
 	{
 		const RenderTarget::FrameStats& stats = mWindow->getStatistics();
 		graphs[0]->AddVal(stats.lastFPS /60.f*0.5f);  // 60 fps in middle
@@ -399,7 +442,7 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 	//const Dbl fMAX = 7000.0, max_y = 180.0, max_x = 12.0, pow_x = 1.0;
 	Dbl fMAX = pSet->te_yf, max_y = pSet->te_xfy, max_x = pSet->te_xfx, pow_x = pSet->te_xf_pow;
 	if (pApp->scn->sc->asphalt)  max_y *= 0.5;
-	const int TireNG = App::TireNG;
+	const int TireNG = App::TireNG, nWh = dynamics.numWheels;
 
 	switch (pApp->pSet->graphs_type)
 	{
@@ -437,25 +480,24 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 		}	break;
 		
 	case Gh_TireSlips:  /// tire slide,slip
-		if (gsi >= 8)
-		for (int i=0; i < 4; ++i)
+		if (gsi >= nWh*2)
+		for (int i=0; i < nWh; ++i)
 		{
 			pApp->graphs[i]->AddVal(negPow(dynamics.wheel[i].slips.slideratio, 0.2) * 0.12f +0.5f);
 			//pApp->graphs[i]->AddVal(dynamics.wheel[i].slips.slide * 0.1f +0.5f);
-			pApp->graphs[i+4]->AddVal(dynamics.wheel[i].slips.slipratio * 0.1f +0.5f);
+			pApp->graphs[i+nWh]->AddVal(dynamics.wheel[i].slips.slipratio * 0.1f +0.5f);
 		}	break;
 		
 	case Gh_Suspension:  /// suspension
-		if (gsi >= 8)
-		for (int i=0; i < 4; ++i)
+		if (gsi >= nWh*2)
+		for (int i=0; i < nWh; ++i)
 		{
 			const CARSUSPENSION& susp = dynamics.GetSuspension((WHEEL_POSITION)i);
-			pApp->graphs[i+4]->AddVal( dynamics.vtype == V_Spaceship ?
+			pApp->graphs[i+nWh]->AddVal( dynamics.vtype == V_Spaceship ?
 				susp.GetVelocity() * 0.2f +0.5f : negPow(susp.GetVelocity(), 0.5) * 0.2f +0.5f);
 			pApp->graphs[i]->AddVal(susp.GetDisplacementPercent());
 		}	break;
 
-		
 	case Gh_TorqueCurve:  /// torque curves, gears
 	//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 	{	static int ii = 0;  ++ii;  // skip upd cntr
@@ -466,7 +508,7 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 			const Dbl r = 1.0 / (2 * PI_d * d.wheel[0].GetRadius());
 
 			String s0="  ratio\n", s1="rpmLow\n", s2="velMax\n";  // text legend
-			for (int i=0; i < 6; ++i)
+			for (int i=0; i < 6/*d.transmission.GetForwardGears()*/; ++i)
 			{
 				int g = i+1;
 				bool bValid = i < d.transmission.GetForwardGears();
@@ -695,9 +737,10 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 	
 	case Gh_Tires4Edit:  /// all tires pacejka vis, edit
 	//. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+	if (gsi >= nWh * 2)
 	{	static int ii = 0;  ++ii;  // skip upd cntr
 		const int im = 1;  //pApp->iUpdTireGr > 0 ? 2 : 8;  // faster when editing val
-		if (ii >= im && gsi >= TireNG * 2)
+		if (ii >= im)
 		{	ii = 0;  pApp->iUpdTireGr = 0;
 
 			Dbl* ft = new Dbl[TireLenG];
@@ -706,7 +749,7 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 			const bool cust = 1;
 
 			///  Fy lateral --  ........
-			for (int i=0; i < TireNG; ++i)
+			for (int i=0; i < nWh; ++i)
 			{
 				WHEEL_POSITION wp = (WHEEL_POSITION)i;
 				const CARTIRE* tire = dynamics.GetTire(wp);
@@ -748,14 +791,14 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 			}
 
 			///  Fx long |  ........
-			for (int i=0; i < TireNG; ++i)
+			for (int i=0; i < nWh; ++i)
 			{
 				WHEEL_POSITION wp = (WHEEL_POSITION)i;
 				const CARTIRE* tire = dynamics.GetTire(wp);
 				const CARWHEEL& wh = dynamics.GetWheel(wp);
 				const CARWHEEL::SlideSlip& t = wh.slips;
 
-				GraphView* gv = pApp->graphs[i+TireNG];
+				GraphView* gv = pApp->graphs[i+nWh];
 				bool comi = common || i == 0;
 				if (comi)
 				{	fmin = FLT_MAX;  fmax = FLT_MIN;  frng = 0.0;  }
@@ -789,8 +832,9 @@ void CAR::GraphsNewVals(double dt)		 // CAR
 						/*"max y "+fToStr((float)fmax,0,1)+"  x "+fToStr(max_x,0,1)+"\n"/**/);
 			}
 			delete[]ft;
+			tireEdit = true;
 		}
-	}	tireEdit = true;
+	}
 	break;
 	}
 

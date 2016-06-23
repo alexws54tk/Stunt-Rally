@@ -38,7 +38,8 @@ public:
 	int cols;     // has column
 
 	int onPipe;   // driven on pipe  0 off, 1 mark for stats only, 2 inverse normal too
-	int loopChk;  // chk is start or end of loop (for auto camera change)
+	int loop;	// loop type: 0 none, 1 straight, 2 side, 3 barrel, 4 double  max LoopTypes-1
+				// if > 0, chk is start or end of loop (for auto camera change)
 
 	//  next
 	Ogre::Real pipe;    // pipe amount 0..1
@@ -46,6 +47,9 @@ public:
 	
 	Ogre::Real chkR;    // checkpoint sphere radius (0-none)
 	bool chk1st;  // 1st checkpoint (1), just once on road
+	
+	bool notReal;  // true means only for decoration, or point move, not real driven road
+	inline bool isnt() {  return idMtr == -1 && !notReal;  }  // real hidden
 
 	SplinePoint();
 	void SetDefault();
@@ -84,8 +88,12 @@ public:
 	inline int getNumPoints() const {  return (int)mP.size();  }
 
 	//  get next, prev points
-	inline int getPrev(int id) const {  int s = (int)mP.size();  return isLooped ?  (id-1+s) % s : std::max(0,   id-1);  }
-	inline int getNext(int id) const {  int s = (int)mP.size();  return isLooped ?  (id+1) % s   : std::min(s-1, id+1);  }
+	inline int getPrev(int id) const
+	{	int s = (int)mP.size();  return isLooped ?  (id-1+s) % s : std::max(0,   id-1);  }
+	inline int getNext(int id) const
+	{	int s = (int)mP.size();  return isLooped ?  (id+1) % s   : std::min(s-1, id+1);  }
+	inline int getAdd(int id, int n) const
+	{	int s = (int)mP.size();  return isLooped ?  (id+n+s) % s : std::min(s-1, std::max(0, id+n));  }
 
 
 	//  pos
@@ -155,11 +163,11 @@ public:
 
 	//  modify road point  ----
 	void ToggleOnTerrain(), ToggleColumn();
-	void ToggleOnPipe(bool old=false);
-	void ToggleLoopChk();  // on chosen
+	void ChgMtrId(int rel);  // next
+	void ChgAngType(int rel), AngZero();
 
-	void ChgMtrId(int relId);  // next
-	void ChgAngType(int relId), AngZero();
+	void ToggleOnPipe(bool old=false);  // extras
+	void ChgLoopType(int rel), ToggleNotReal();
 
 
 	///  Edit  ====

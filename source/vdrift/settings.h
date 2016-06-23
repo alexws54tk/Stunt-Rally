@@ -3,13 +3,14 @@
 #include "../ogre/common/settings_com.h"
 
 
-#define SET_VER  2500  // 2.5
+#define SET_VER  2600  // 2.6
 
 
 enum eGraphType  {
 	Gh_Fps=0, Gh_CarAccelG,
 	Gh_CamBounce, Gh_BulletHit,
 	Gh_Sound,
+	Gh_Checks,
 	Gh_Suspension,
 	Gh_TireSlips,
 	Gh_TireEdit, Gh_Tires4Edit,
@@ -20,7 +21,8 @@ enum eGraphType  {
 const static std::string csGraphNames[Gh_ALL] = {
 	"Fps graphics perf.", "Car Accel G's",
 	"Camera bounce", "Car Hit chassis",
-	"Sound volume & pan, wave",
+	"Sound info, sources",
+	"Checkpoints",
 	"Suspension pos & vel",
 	"Tires slip| & slide-",
 	"Tire Edit (Pacejka coeffs)*", "All Tires Pacejka vis and edit*",
@@ -50,9 +52,13 @@ public:
 	float fov_min, fov_max, fov_smooth;
 	bool cam_loop_chng;  int cam_in_loop;
 	bool cam_bounce;  float cam_bnc_mul;
+	//  pacenotes
+	bool pace_show;  int pace_next;
+	float pace_dist, pace_size, pace_near, pace_alpha;
 	
 	eGraphType graphs_type;
 	int car_dbgtxtclr, car_dbgtxtcnt;
+	bool sounds_info;
 	//  gui
 	bool cars_sortup;  int cars_view, cars_sort;
 	int tut_type, champ_type, chall_type;
@@ -87,7 +93,7 @@ public:
 		float trees;  // common
 		
 		bool trackreverse;
-		std::vector<std::string> car;  //[4]
+		std::vector<std::string> car;  //[4] local players
 		std::vector<float> car_hue, car_sat, car_val, car_gloss, car_refl;  //[6] also for ghosts
 
 		int local_players, num_laps;  // split
@@ -126,6 +132,7 @@ public:
 		vol_engine, vol_tires, vol_susp, vol_env,
 		vol_fl_splash,vol_fl_cont, vol_car_crash,vol_car_scrap;
 	bool snd_chk, snd_chkwr;  // play hud
+	bool snd_reverb;  std::string snd_device;
 	
 	//  sim freq (1/interval timestep)
 	float game_fq, blt_fq,  perf_speed;

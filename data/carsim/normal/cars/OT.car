@@ -1,5 +1,4 @@
 drive = AWD
-version = 2
 # all positions have x,y,z dir going + to: right, front, up
 
 [ steering ]
@@ -43,6 +42,7 @@ friction = 0.4
 #  engine
 #---------------------------
 [ engine ]
+sound = engine
 position = 0.0, 1.1, 0.9
 mass = 180.0
 rpm-limit = 2700

@@ -114,6 +114,10 @@ void CScene::UpdFog(bool bForce)
 	app->mFactory->setSharedParameter("fogColorH",    sh::makeProperty<sh::Vector4>(new sh::Vector4(v.x, v.y, v.z, v.w)));
 	app->mFactory->setSharedParameter("fogParamsH",   sh::makeProperty<sh::Vector4>(new sh::Vector4(
 		sc->fogHeight, ok ? 1.f/sc->fogHDensity : 0.f, sc->fogHStart, 1.f/(sc->fogHEnd - sc->fogHStart) )));
+	
+	// fluid fog, default off
+	app->mFactory->setSharedParameter("fogFluidH",    sh::makeProperty<sh::Vector4>(new sh::Vector4(-900.f, 1/17.f, 1.f, 0)));
+	app->mFactory->setSharedParameter("fogFluidClr",  sh::makeProperty<sh::Vector4>(new sh::Vector4(0.5f,0.7,0.9f, 1.f)));
 }
 
 
@@ -221,6 +225,7 @@ void App::SetFactoryDefaults()
 	fct.setSharedParameter("waterTimer", sh::makeProperty<sh::FloatValue>(new sh::FloatValue(0)));
 	fct.setSharedParameter("waterSunFade_sunHeight", sh::makeProperty<sh::Vector2>(new sh::Vector2(1, 0.6)));
 	fct.setSharedParameter("windDir_windSpeed", sh::makeProperty<sh::Vector3>(new sh::Vector3(0.5, -0.8, 0.2)));
+	fct.setSharedParameter("paceParams", sh::makeProperty<sh::Vector4>(new sh::Vector4(1.f, 5.f, 0.02f, 1.f)));
 
 
 	///  uncomment to enable shader output to files
@@ -239,9 +244,16 @@ void App::SetFactoryDefaults()
 		else if (pSet->shader_mode == "cg")	  lang = sh::Language_CG;
 		else if (pSet->shader_mode == "hlsl") lang = sh::Language_HLSL;
 		else
-		{	LogO("Error Unknown shader_mode !!");  assert(0);  }
+		{	LogO("Error: Unknown shader_mode !");  assert(0);  }
 	}
 	mFactory->setCurrentLanguage(lang);
 
 	mFactory->loadAllFiles();
+}
+
+void CScene::UpdPaceParams()  // pacenotes
+{
+	app->mFactory->setSharedParameter("paceParams", sh::makeProperty<sh::Vector4>(new sh::Vector4(
+		app->pSet->pace_size, 5.f / app->pSet->pace_near,
+		0.03f * app->pSet->pace_near, app->pSet->pace_alpha)));
 }

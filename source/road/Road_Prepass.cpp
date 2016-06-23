@@ -8,13 +8,50 @@ using std::vector;  using std::min;  using std::max;
 
 
 
+///  rebuild for Pace  ~ ~
+void SplineRoad::RebuildRoadPace()
+{
+	Ogre::Timer ti;	
+	vPace.clear();
+
+	DataRoad DR(false, true);
+	PrepassRange(DR);
+	
+	LogR("");
+	LogR("LOD: -1 pace ---");
+	// lod -1 is only for pacenotes data
+
+	DataLod DL;
+	StatsLod ST;
+
+	PrepassLod(DR,DL0,DL,ST, -1, false);
+	
+	DataLodMesh DLM;
+
+	///  Segment
+	int sNum = DR.sMax - DR.sMin,
+		segM = DR.sMin;
+
+	while (sNum > 0)
+	{
+		DataSeg DS;
+		
+		BuildSeg(DR,DL0,DL,ST,DLM, DS, segM, true);
+		
+		--sNum;  ++segM;  // next
+	}
+
+	LogO(String("::: Time Road Pace Rebuild: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");
+}
+
+
 ///  Rebuild geometry
 //--------------------------------------------------------------------------------------------------------------------------
 
-void SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
+bool SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
 {
 
-	if (!rebuild && !(editorAlign || bulletFull))  return;
+	if (!rebuild && !(editorAlign || bulletFull))  return false;
 	rebuild = false;
 
 	UpdRot(); //
@@ -28,7 +65,8 @@ void SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
 	
 		
 	//  full rebuild
-	if (iDirtyId == -1)
+	bool full = iDirtyId == -1;
+	if (full)
 	{
 		DestroyRoad();
 		for (int seg=0; seg < DR.segs; ++seg)
@@ -46,7 +84,7 @@ void SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
 	///  LOD
 	//-----------------------------
 	DL0.Clear();
-
+	
 	for (int lod = 0; lod < LODs; ++lod)
 	{
 		LogR("");
@@ -68,7 +106,7 @@ void SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
 		{
 			DataSeg DS;
 			
-			BuildSeg(DR,DL0,DL,ST,DLM, DS, segM);
+			BuildSeg(DR,DL0,DL,ST,DLM, DS, segM, full);
 			
 			--sNum;  ++segM;  // next
 		}
@@ -79,12 +117,14 @@ void SplineRoad::RebuildRoadInt(bool editorAlign, bool bulletFull)
 	
 	
 	UpdLodVis(fLodBias);
-	if (iDirtyId == -1)
+	if (full)
 		iOldHide = -1;
 
 
-	if (iDirtyId == -1)
+	if (full)
 		LogO(String("::: Time Road Rebuild: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");
+
+	return full;
 }
 
 
@@ -142,6 +182,11 @@ void SplineRoad::PrepassAngles(DataRoad& DR)
 //---------------------------------------------------------------------------------------
 const int ciLodDivs[LODs] = {1,2,4,8};
 
+///par []()  pacenotes prepass
+const int pace_iDiv = 4, pace_iW = 2;
+const float pace_fLen = 12.f;
+
+
 void SplineRoad::PrepassLod(
 	const DataRoad& DR,
 	DataLod0& DL0, DataLod& DL, StatsLod& ST,
@@ -149,10 +194,12 @@ void SplineRoad::PrepassLod(
 {
 	DL.lod = lod;
 	DL.isLod0 = lod == 0;
+	DL.isPace = lod == -1;
 
-	int iLodDiv = ciLodDivs[lod];
-	DL.fLenDim = g_LenDim0 * iLodDiv;
+	int iLodDiv = DL.isPace ? pace_iDiv :  ciLodDivs[lod];
+	DL.fLenDim =  DL.isPace ? pace_fLen :  g_LenDim0 * iLodDiv;
 	DL.tcLen = 0.f;
+	int inLoop = 0;
 		
 	//if (isLod0)?
 	LogR("--- Lod segs prepass ---");
@@ -160,15 +207,17 @@ void SplineRoad::PrepassLod(
 	{
 		int seg1 = getNext(seg), seg0 = getPrev(seg);
 
-		//  width steps  --
+		//  width steps  pipe  --
 		Real sp = mP[seg].pipe, sp1 = mP[seg1].pipe, sp0 = mP[seg0].pipe;
 		Real p = sp * g_P_iw_mul, pl = max(sp, sp1)* g_P_iw_mul/4;
 		if (p < 0.f)  p = 1.f;  else  p = 1.f + p;
 		if (pl< 0.f)  pl= 1.f;  else  pl= 1.f + pl;
 		bool pipe = sp > 0.f || sp1 > 0.f;
 		//int wmin = pipe ? 5 : 1;  // min w steps  //par
-
-		int iw = max(1/*wmin*/, (int)(p * g_iWidthDiv0 / iLodDiv));  //* wid/widDiv..
+		
+		//  road  --
+		int iw = DL.isPace ? pace_iW :
+			max(1/*wmin*/, (int)(p * g_iWidthDiv0 / iLodDiv));  //* wid/widDiv..
 		DL.v_iW.push_back(iw);
 		int iwl = max(1, (int)(pl * g_iWidthDiv0 / iLodDiv));
 
@@ -180,11 +229,13 @@ void SplineRoad::PrepassLod(
 		DL.v_iL.push_back(il);
 		DL.v_len.push_back(len);
 
-		ST.roadLen += len;  //#
-		if (pipe)
-		{	ST.rdPipe += len; //#
-			if (mP[seg].onPipe)  ST.rdOnPipe += len;  //#
-		}
+		if (!mP[seg].notReal)
+		{	//  add len
+			ST.roadLen += len;  //#
+			if (pipe)
+			{	ST.rdPipe += len; //#
+				if (mP[seg].onPipe)  ST.rdOnPipe += len;  //#
+		}	}
 
 		///-  Merge conditions
 		DL.sumLenMrg += len;
@@ -211,8 +262,15 @@ void SplineRoad::PrepassLod(
 			"  pipe prv" + toStr(sp0) + "  cur " + toStr(sp) + "  nxt" + toStr(sp1));
 		
 		if (DL.isLod0)
-			DL0.v0_iL.push_back(il);
+		{	
+			int l = mP[seg].loop;  // type
+			if (l > 0)	///[]()
+			if (inLoop == 0)  inLoop = l;
+			else  inLoop = 0;
 
+			DL0.v0_iL.push_back(il);
+			DL0.v0_Loop.push_back(inLoop);
+		}
 
 		///  length <dir>  |
 		Vector3 vl = GetLenDir(seg, 0, lenAdd), vw;  vl.normalise();

@@ -8,6 +8,7 @@
 #include "CApp.h"
 #include "CGui.h"
 #include "../road/Road.h"
+#include "../road/PaceNotes.h"
 #include "../paged-geom/PagedGeometry.h"
 #include "../vdrift/pathmanager.h"
 #include "../ogre/common/RenderConst.h"
@@ -39,11 +40,12 @@ using namespace Ogre;
 void App::createScene()  // once, init
 {
 	//  prv tex
-	prvView.Create(1024,1024,"PrvView");
-	prvRoad.Create(1024,1024,"PrvRoad");
-	 prvTer.Create(1024,1024,"PrvTer");
+	int k=1024;
+	prvView.Create(k,k,"PrvView");
+	prvRoad.Create(k,k,"PrvRoad");
+	 prvTer.Create(k,k,"PrvTer");
 
-	scn->roadDens.Create(1025,1025,"RoadDens");
+	scn->roadDens.Create(k+1,k+1,"RoadDens");
 	
 	///  ter lay tex
 	for (int i=0; i < 6; ++i)
@@ -73,6 +75,7 @@ void App::createScene()  // once, init
 	//  data load xml
 	scn->data->Load();
 	scn->sc->pFluidsXml = scn->data->fluids;
+	scn->sc->pReverbsXml = scn->data->reverbs;
 	
 	//  surfaces.cfg
 	LoadAllSurfaces();
@@ -93,19 +96,13 @@ void App::createScene()  // once, init
 
 	///__  All  #if 0  in Release !!!
 
-	///  _Tool_ scene  ...........................
+	///  _Tool_ scene  ...................
 	#if 0
 	gui->ToolSceneXml();
 	exit(0);
 	#endif
 	
-	///  _Tool_ presets  .......
-	#if 0
-	gui->ToolPresets();
-	exit(0);
-	#endif
-
-	///  _Tool_	warnings  ...........................
+	///  _Tool_	warnings  ................
 	///  takes some time
 	#if 0
 	gui->ToolTracksWarnings();
@@ -116,7 +113,7 @@ void App::createScene()  // once, init
 	TerCircleInit();
 	createBrushPrv();
 	
-	///  _Tool_ brushes prv  ...........................
+	///  _Tool_ brushes prv  .............
 	#if 0
 	gui->ToolBrushesPrv();
 	#endif
@@ -175,9 +172,10 @@ void App::NewCommon(bool onlyTerVeget)
 	scn->DestroyTerrain();
 		
 	//world.Clear();
-	track->Clear();
+	if (track)  track->Clear();
 
 	if (resTrk != "")  mRoot->removeResourceLocation(resTrk);
+	LogO("------  Loading track: "+pSet->gui.track);
 	resTrk = gcom->TrkDir() + "objects";
 	mRoot->addResourceLocation(resTrk, "FileSystem");
 
@@ -199,8 +197,9 @@ void App::LoadTrackEv()
 	NewCommon(false);  // full destroy
 	iObjCur = -1;
 
-	if (scn->road)
-	{	scn->road->Destroy();  delete scn->road;  scn->road = 0;  }
+	scn->DestroyRoad();
+	scn->DestroyPace();
+	
 
 	// load scene
 	scn->sc->LoadXml(gcom->TrkDir()+"scene.xml");
@@ -229,6 +228,7 @@ void App::LoadTrackEv()
 	bNewHmap = false;/**/
 	scn->CreateTerrain(bNewHmap, scn->sc->ter);
 
+	if (track)
 	if (scn->sc->vdr)  // vdrift track
 	{
 		if (!LoadTrackVdr(pSet->gui.track))
@@ -244,6 +244,10 @@ void App::LoadTrackEv()
 	scn->road->Setup("sphere.mesh", pSet->road_sphr, scn->terrain, mSceneMgr, mCamera);
 	scn->road->LoadFile(gcom->TrkDir()+"road.xml");
 	scn->UpdPSSMMaterials();
+	
+	//  pace ~ ~
+	scn->pace = new PaceNotes(pSet);
+	scn->pace->Setup(mSceneMgr, mCamera, scn->terrain, gui->mGui, mWindow);
 	
 	
 	/// HW_Inst Test  * * *
@@ -526,7 +530,7 @@ void App::BltWorldDestroy()
 //  Clear - delete bullet pointers
 void App::BltClear()
 {
-	track = NULL;
+	//track = NULL;
 	DestroyVdrTrackBlt();
 	
 	if (world)

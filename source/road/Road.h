@@ -30,6 +30,7 @@ class btTriangleMesh;
 
 #define  LODs  4
 #define  MTRs  4
+#define  LoopTypes  8  // for pace notes
 
 
 struct RoadSeg
@@ -73,7 +74,8 @@ public:
 	bool LoadFile(Ogre::String fname, bool build=true), SaveFile(Ogre::String fname);
 	
 	//  Rebuild
-	void RebuildRoadInt(bool editorAlign=false, bool edBulletFull=false);
+	bool RebuildRoadInt(bool editorAlign=false, bool edBulletFull=false);
+	void RebuildRoadPace();  ///  Rebuild road only for pacenotes, after RebuildRoadInt
 	void Destroy(), DestroyRoad(), DestroySeg(int id);
 
 
@@ -149,8 +151,9 @@ private:
 		std::vector<int>            v0_iL;  // length steps
 		std::vector<Ogre::Real>     v0_tc;  // tex coords
 		std::vector<Ogre::Vector3>  v0_N;   // normals
+		std::vector<int>          v0_Loop;  // bool, inside loop
 		void Clear()
-		{	v0_iL.clear();  v0_tc.clear();  v0_N.clear();  }
+		{	v0_iL.clear();  v0_tc.clear();  v0_N.clear();  v0_Loop.clear();  }
 	}
 	DL0;  // stays after build since N is used for SetChecks
 	void SetChecks();  // Init  1st in file load, 2nd time for N
@@ -174,11 +177,12 @@ private:
 		//  LOD vars
 		int lod, iLodDiv;  //.
 		Ogre::Real fLenDim;
-		bool isLod0;
+		bool isLod0, isPace;
 		
 		DataLod()
 			:tcLen(0.f), sumLenMrg(0.f), mrgCnt(0)
-			,lod(0), iLodDiv(1), fLenDim(1.f), isLod0(true)  //-
+			,lod(0), iLodDiv(1), fLenDim(1.f),
+			isLod0(true), isPace(false)
 		{	}
 	};
 	
@@ -216,6 +220,22 @@ private:
 		{	}
 		void Clear();
 	};
+
+public:  ///  pacenotes prepass data
+	struct PaceM
+	{
+		Ogre::Vector3 pos, pos2;
+		float aa;
+		int used;  bool vis, notReal, onTer;
+		int loop;  bool jump,jumpR, onPipe,onPipeE;
+		PaceM()
+			:used(-1), aa(0.f)
+			,vis(1), notReal(0), onTer(1)
+			,loop(0), jump(0),jumpR(0), onPipe(0),onPipeE(0)
+		{	}
+	};
+	std::vector<PaceM> vPace;
+private:
 	
 	struct DataSeg  // for segment
 	{
@@ -225,14 +245,14 @@ private:
 		bool pipe;
 		bool hasBlend;
 		int iwC;
-		bool jfw0,jfw1;  // jump front walls
+		bool jfw0,jfw1,jfw2;  // jump front walls
 	};
 	
 	//  Build Segment Geometry
 	void BuildSeg(
 		const DataRoad& DR,
 		const DataLod0& DL0, DataLod& DL, StatsLod& ST,
-		DataLodMesh& DLM, DataSeg& DS, int segM);
+		DataLodMesh& DLM, DataSeg& DS, int segM, bool full);
 		
 		
 	void createSeg_Meshes(

@@ -1,5 +1,4 @@
 drive = hover
-version = 2
 # all positions have x,y,z dir going + to: right, front, up
 
 [ steering ]
@@ -89,6 +88,7 @@ hov_rise = 6000
 #  engine
 #---------------------------
 [ engine ]
+sound = thruster
 position = 0.0, 0.0, 0.0
 mass = 250.0
 rpm-limit = 6500

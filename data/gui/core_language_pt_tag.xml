@@ -40,6 +40,7 @@
 	<Tag name="Prize">Prêmio</Tag>
 	<Tag name="Hint-2text">Pressione [Q] ou [W] para girar o carro quando estiver de ponta-cabeça ou num salto. Dependendo das configurações, isso pode custar combustível.</Tag>
 	<Tag name="TreeDens">Densidade das árvores</Tag>
+	<Tag name="Vehicles">Vehicles</Tag>
 	<Tag name="TipVegetGroups">Vegetation model groups (recommended use 4-6), affects performance.</Tag>
 	<Tag name="TBPosition">Posição</Tag>
 	<Tag name="Pipe">Pipe</Tag>
@@ -72,6 +73,7 @@
 	<Tag name="Group">Group</Tag>
 	<Tag name="ChampEndFinished">Você concluiu esse campeonato.</Tag>
 	<Tag name="Negative">Negative (darken)</Tag>
+	<Tag name="InputRoadLoopType">cycle loop type (shift - back), keep same on both ends</Tag>
 	<Tag name="PickSetParam">Set parameters, marked with</Tag>
 	<Tag name="Hint-4">Dano</Tag>
 	<Tag name="Camera">Câmera</Tag>
@@ -114,6 +116,7 @@
 	<Tag name="SleepMS">Sleep interval [milisec]</Tag>
 	<Tag name="TipTexTiling">Texture tiling length (less means more repeats).</Tag>
 	<Tag name="InputKeyboardEmulation">Emulação do Teclado</Tag>
+	<Tag name="Reverb">Reverberation</Tag>
 	<Tag name="InputMapFlip">Virar</Tag>
 	<Tag name="TBLast">Último</Tag>
 	<Tag name="TrackBankAng">Ângulos de inclinação da estrada: média e máx., em graus.</Tag>
@@ -130,6 +133,7 @@
 	<Tag name="Materials">Materiais</Tag>
 	<Tag name="InputMapResetGame">Reiniciar jogo</Tag>
 	<Tag name="smoke">fumaça</Tag>
+	<Tag name="ConvertAllRpl">Convert All (smaller size)</Tag>
 	<Tag name="MouseCapture">Capturar mouse</Tag>
 	<Tag name="TipMinimapScrnEditor">Minimapa da pista selecionada, vista do topo.</Tag>
 	<Tag name="TipTerNoiseOnly">Will ignore terrain angle and height ranges. Layer will only appear, if other layer's noise multiplier blends to this.</Tag>
@@ -186,6 +190,7 @@
 	<Tag name="BackMenu">Voltar</Tag>
 	<Tag name="BasedOn">baseado em</Tag>
 	<Tag name="UnitKg">Kg</Tag>
+	<Tag name="PaceNextVisible">Next shown</Tag>
 	<Tag name="NetLeaveGame">Sair do jogo</Tag>
 	<Tag name="TipDustInt">Intensidade das partículas de poeira.</Tag>
 	<Tag name="CameraInfo">Info. da câmera</Tag>
@@ -309,7 +314,7 @@
 	<Tag name="Effects">Efeitos</Tag>
 	<Tag name="WidthSteps">Width Steps</Tag>
 	<Tag name="Multiply">Multiply</Tag>
-	<Tag name="Hint-6text">Pressione [Ctrl] para o turbo. Dependendo das configurações, ele pode ser dado a cada volta, regenerar com o tempo, ou ser infinito.</Tag>
+	<Tag name="FullSoundsInfo">Full sounds info in graphs.</Tag>
 	<Tag name="GrassSway">Sway</Tag>
 	<Tag name="TipSpeedSensitiveSteering">Diminui o alcance da direção em altas velocidades.</Tag>
 	<Tag name="HDRTab">HDR</Tag>
@@ -474,6 +479,7 @@
 	<Tag name="DidntPass">Não passou</Tag>
 	<Tag name="Road_Cur">Cur</Tag>
 	<Tag name="InputMinimapType">shift-F2,F3 - Prev,next minimap type</Tag>
+	<Tag name="CarDesc_BV">Big extreme bike with advanced electric engine. Extremely fast and light. Also great for exploring other planets. Doesn't handle bad jump landings and bumps.</Tag>
 	<Tag name="TipGrassSwayLen">Grass sway effect length (scale).</Tag>
 	<Tag name="Road">Road</Tag>
 	<Tag name="FluidCont">Fluid Cont.</Tag>
@@ -574,6 +580,7 @@
 	<Tag name="CopyTrackSourceSame">Source track and current track are the same.</Tag>
 	<Tag name="DisableEdit">Disable for edit</Tag>
 	<Tag name="LS_TER">Carregando terreno</Tag>
+	<Tag name="Vehicle">Vehicle</Tag>
 	<Tag name="Test">Test</Tag>
 	<Tag name="Continue">Continuar</Tag>
 	<Tag name="TipDiffusePrev">Diffuse texture preview image.</Tag>
@@ -590,7 +597,7 @@
 	<Tag name="Brush_ShapeN-gon">N-gon</Tag>
 	<Tag name="Brush_CurrentH">Curr.H</Tag>
 	<Tag name="TipDiffuseTex">Diffuse texture (Specular in alpha).</Tag>
-	<Tag name="CarChange">Troca de carro</Tag>
+	<Tag name="CarChange">Vehicle change</Tag>
 	<Tag name="LTrFlDepth">max Depth in fluid</Tag>
 	<Tag name="InputToggleVeget">V - Disable / enable vegetation</Tag>
 	<Tag name="InputRoadMat">-,=  - road/pipe material  (-1 hidden)</Tag>
@@ -760,7 +767,7 @@
 	<Tag name="CarDesc_V2">Outra nave espacial flutuante. Ligeiramente mais pesada e mais lenta mas não desliza para os lados tão facilmente.</Tag>
 	<Tag name="Pick">Pick</Tag>
 	<Tag name="RoadPoint">Road Point</Tag>
-	<Tag name="InputRoadLoopChk">7   - mark checkpoint as loop begin/end (for car camera change)</Tag>
+	<Tag name="InputRoadLoopChk">7   - change checkpoint as loop begin/end (for car camera change)</Tag>
 	<Tag name="ObjRocks">Rocks</Tag>
 	<Tag name="ShortcutsInfo">Press with alt to quick access gui tab (or sub-tab). Pressing again will cycle sub-tabs (if any).</Tag>
 	<Tag name="AlignWidthMul">Width multiply</Tag>
@@ -814,7 +821,7 @@
 	<Tag name="set2">set2</Tag>
 	<Tag name="auto">Auto</Tag>
 	<Tag name="TipWindInflH">Wind influence on model, height scale.</Tag>
-	<Tag name="NetLocalPort">Porta local</Tag>
+	<Tag name="ToolsTime">Warning: May take several minutes!</Tag>
 	<Tag name="Bloom">Bloom</Tag>
 	<Tag name="Silver">Prata</Tag>
 	<Tag name="TipWindInflL">Wind influence on model, length scale.</Tag>
@@ -869,6 +876,7 @@
 	<Tag name="ParAmount">Particle amounts</Tag>
 	<Tag name="TipFogClr">Fog end color when looking under sun.</Tag>
 	<Tag name="speed">speed</Tag>
+	<Tag name="NetLocalPort">Porta local</Tag>
 	<Tag name="InputRoadYaw">- rotate yaw</Tag>
 	<Tag name="WaterRefraction">Refração</Tag>
 	<Tag name="SpecularPowerEm">Emissive power</Tag>
@@ -919,6 +927,7 @@
 	<Tag name="ImpostorDist">Impostors dist.</Tag>
 	<Tag name="Road1SurfOnly">Only 1 road surface</Tag>
 	<Tag name="AlignSmooth">Smooth size</Tag>
+	<Tag name="smooth">smooth</Tag>
 	<Tag name="RollingResist">Rolling Resistance</Tag>
 	<Tag name="Hint-12text">Dê uma olhada em outros veículos, nós temos também naves espaciais, e pistas em outros planetas.</Tag>
 	<Tag name="TipGrassDens">How dense/rare will the grass be on terrain.</Tag>
@@ -967,6 +976,7 @@
 	<Tag name="TipModelPrev">Model preview image.</Tag>
 	<Tag name="InputRoadEdit">R - edit road mode</Tag>
 	<Tag name="jumps">saltos</Tag>
+	<Tag name="Road_NotReal">Not Real</Tag>
 	<Tag name="TBBest">Melhor</Tag>
 	<Tag name="Trilinear">Trilinear</Tag>
 	<Tag name="Near">Perto</Tag>
@@ -1023,6 +1033,7 @@
 	<Tag name="RplLoad">Carregar</Tag>
 	<Tag name="UnitBhp">bhp</Tag>
 	<Tag name="CarDesc_M3">Carro muito antigo, com um motor de baixa potência. Não é adequado para saltos. Escolha-o caso queira dirigir devagar.</Tag>
+	<Tag name="CarDesc_Y7">Extremely fast car. Don't press throttle for too long. Drivable only on fast smooth tracks.</Tag>
 	<Tag name="InpSet_AxisHalfInv">Meio Eixo Invertido</Tag>
 	<Tag name="ScaleTerHeight">Terrain Height</Tag>
 	<Tag name="TipTerLHSm">Height smooth range (transition).</Tag>
@@ -1082,6 +1093,7 @@
 	<Tag name="ColSat">Saturação</Tag>
 	<Tag name="Collis.">Colis.</Tag>
 	<Tag name="Scenery">Cenário</Tag>
+	<Tag name="Hint-6text">Pressione [Ctrl] para o turbo. Dependendo das configurações, ele pode ser dado a cada volta, regenerar com o tempo, ou ser infinito.</Tag>
 	<Tag name="RenameAllOld">Rename All Old</Tag>
 	<Tag name="SC_Autumn">Outono</Tag>
 	<Tag name="Track">Pista</Tag>
@@ -1097,6 +1109,7 @@
 	<Tag name="InputPaintColor">C - Paint Color</Tag>
 	<Tag name="InputSubTabSpace">Space - cycle sub-tabs (shift - back)</Tag>
 	<Tag name="TipSurfType">Type of surface, determines sound.</Tag>
+	<Tag name="InputRoadNotReal">shift-8   - toggle not real (only for decoration, or point move)</Tag>
 	<Tag name="NextStage">Continuando para a próxima etapa</Tag>
 	<Tag name="NetWaiting">Esperando...</Tag>
 	<Tag name="Peers">Peers</Tag>
@@ -1127,7 +1140,7 @@
 	<Tag name="GraphicsAll_VeryHigh">Muito Alto</Tag>
 	<Tag name="SC_Moss">Musgo</Tag>
 	<Tag name="Terrain">Terreno</Tag>
-	<Tag name="smooth">smooth</Tag>
+	<Tag name="Pacenotes">Pacenotes</Tag>
 	<Tag name="Pitch">pitch</Tag>
 	<Tag name="Hint-10text">Nos loops, a câmera irá automaticamente mudar para a visão interna, para facilitar a direção enquanto estiver dentro deles.</Tag>
 	<Tag name="InputNextOptTab">F2,F3 - prev,next tab (alt - sub-tab)</Tag>

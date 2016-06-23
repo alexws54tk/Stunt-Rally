@@ -1,5 +1,5 @@
 #pragma once
-#include "ReplayGame.h"
+#include "Replay.h"
 #include "../vdrift/cardefs.h"
 #include "CarModel.h"
 #include "CarReflection.h"
@@ -20,10 +20,7 @@
 
 namespace Ogre {  class SceneNode;  class SceneManager;  class Viewport;  class ManualObject;  }
 namespace MyGUI  {  class MultiList2;  class Slider;  }
-class GraphView;
-class App;
-class SETTINGS;
-class CGui;
+class GraphView;  class App;  class SETTINGS;  class CGui;
 
 
 class CHud
@@ -118,9 +115,11 @@ public:
 	///  checkpoint arrow
 	struct Arrow
 	{
+		Ogre::Entity* ent;
 		Ogre::SceneNode* node,*nodeRot;  // checkpoint arrow
 		Ogre::Quaternion qStart, qEnd, qCur;  // smooth animation
 		Arrow();
+		void Create(Ogre::SceneManager* mSceneMgr, SETTINGS* pSet);
 	} arrow;
 		
 	float asp, scX,scY, minX,maxX, minY,maxY;  // minimap visible range
@@ -130,7 +129,6 @@ public:
 
 	//  init
 	void Create(), Destroy();
-	void CreateArrow();
 	Ogre::ManualObject* CreateVdrMinimap();  //vdr only
 
 	//  show, size
@@ -154,7 +152,6 @@ public:
 	Ogre::Vector3 projectPoint(const Ogre::Camera* cam, const Ogre::Vector3& pos);  // 2d xy, z - out info
 
 	//  string utils
-	static Ogre::String StrTime(float time), StrTime2(float time);  // 2=short
 	Ogre::String StrClr(Ogre::ColourValue c);
 
 	//  bullet debug text

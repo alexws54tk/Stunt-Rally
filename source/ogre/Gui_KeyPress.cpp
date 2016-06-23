@@ -13,6 +13,8 @@
 #include "FollowCamera.h"
 #include <boost/algorithm/string.hpp>
 #include "../sdl4ogre/sdlinputwrapper.hpp"
+#include "../sound/SoundMgr.h"
+#include "../sound/SoundBaseMgr.h"
 using namespace std;
 using namespace Ogre;
 using namespace MyGUI;
@@ -60,7 +62,7 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 	if (skey == key(ESCAPE))
 	{
 		if (pSet->escquit && !bAssignKey)
-			mShutDown = true;	// quit
+			ShutDown();  // quit
 		else
 			if (mWndChampStage->getVisible())  ///  close champ wnds
 				gui->btnChampStageStart(0);
@@ -163,6 +165,9 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 
 	//  not main menus
 	//--------------------------------------------------------------------------------------------------------------
+	#ifdef REVERB_BROWSER
+	static int ii=0;
+	#endif
 	bool trkTab = !pSet->isMain && pSet->inMenu == MNU_Single && mWndTabsGame->getIndexSelected() == TAB_Track;
 	//bool Fspc = isFocGui && trkTab && wf == gcom->edTrkFind;
 	if (!tweak)
@@ -212,15 +217,37 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 					MyGUI::InputManager::getInstance().setKeyFocusWidget(gcom->edTrkFind);
 					return true;
 				}	break;
+			
+			
+			#ifdef REVERB_BROWSER
+			case key(1):
+			{	--ii;  int s = pGame->snd->sound_mgr->mapReverbs.size();  if (ii < 0)  ii += s;
+				std::map <std::string, int>::const_iterator it = pGame->snd->sound_mgr->mapReverbs.begin();
+				for (int i=0; i<ii; ++i)  ++it;
+				pGame->snd->sound_mgr->SetReverb((*it).first);
+			}	break;
+			case key(2):
+			{	++ii;  int s = pGame->snd->sound_mgr->mapReverbs.size();  if (ii >= s)  ii -= s;
+				std::map <std::string, int>::const_iterator it = pGame->snd->sound_mgr->mapReverbs.begin();
+				for (int i=0; i<ii; ++i)  ++it;
+				pGame->snd->sound_mgr->SetReverb((*it).first);
+			}	break;
+			#endif
 
+
+			case key(F6):	//  Arrow
+				if (shift)	gui->ckBeam.Invert(); else
+				if (!ctrl)	gui->ckArrow.Invert();
+				return false;
 
 			case key(F7):	//  Times
+				if (alt)	gui->ckCarDbgBars.Invert(); else
 				if (shift)	gui->ckOpponents.Invert(); else
 				if (!ctrl)	gui->ckTimes.Invert();
 				return false;
 
 			case key(F8):	//  Minimap
-				if (ctrl)	gui->ckCarDbgBars.Invert(); else
+				if (alt)	gui->ckPaceShow.Invert(); else
 				if (!shift)	gui->ckMinimap.Invert();
 				return false;
 
@@ -237,8 +264,9 @@ bool App::keyPressed(const SDL_KeyboardEvent &arg)
 				break;
 
 			case key(F10):	//  blt debug
-				if (shift)	gui->ckBltProfTxt.Invert(); else
-				if (ctrl)	gui->ckBulletDebug.Invert();
+				if (ctrl)	gui->ckBulletDebug.Invert(); else
+				if (alt)	gui->ckSoundInfo.Invert(); else
+				if (shift)	gui->ckBltProfTxt.Invert();
 				else		gui->ckWireframe.Invert();
 				return false;
 
@@ -378,7 +406,7 @@ void App::channelChanged(ICS::Channel *channel, float currentValue, float previo
 	{
 		Wnd wnd = mWndNetEnd;
 		if (wnd && wnd->getVisible())  {  wnd->setVisible(false);  // hide netw end
-			return;	}
+			return;  }
 		else
 		{	wnd = mWndChampEnd;
 			if (wnd && wnd->getVisible())  wnd->setVisible(false);  // hide champs end
@@ -396,9 +424,10 @@ void App::channelChanged(ICS::Channel *channel, float currentValue, float previo
 		if (bPerfTest)
 		{	gui->BackFromChs();
 			pSet->gui.track = "Test10-FlatPerf";
-			pSet->gui.track_user = false;  }
+			pSet->gui.track_user = false;
+		}
 		iPerfTestStage = PT_StartWait;
-		NewGame();  return;
+		NewGame(shift);  return;
 	}
 
 	//  new game - fast (same track & cars)
@@ -419,8 +448,9 @@ void App::channelChanged(ICS::Channel *channel, float currentValue, float previo
 		}
 		pGame->timer.Reset(-1);
 		pGame->timer.pretime = mClient ? 2.0f : pSet->game.pre_time;  // same for all multi players
+
 		carIdWin = 1;  //
-		ghost.Clear(); //
+		ghost.Clear();  replay.Clear();
 	}
 	
 	//  Screen shot

@@ -28,7 +28,7 @@
 using namespace Ogre;
 
 
-SplitScr::SplitScr(Ogre::SceneManager* sceneMgr, Ogre::RenderWindow* window, SETTINGS* set) :
+SplitScr::SplitScr(SceneManager* sceneMgr, RenderWindow* window, SETTINGS* set) :
 	pApp(0), mGuiViewport(0), mGuiSceneMgr(0),
 	mWindow(window), mSceneMgr(sceneMgr), pSet(set)
 {
@@ -42,29 +42,29 @@ SplitScr::~SplitScr()
 	mWindow->removeListener(this);
 }
 
-void SplitScr::SetBackground(const Ogre::ColourValue& value)
+void SplitScr::SetBackground(const ColourValue& value)
 {
-	for (std::list<Ogre::Viewport*>::iterator vpIt=mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
+	for (std::list<Viewport*>::iterator vpIt=mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
 		(*vpIt)->setBackgroundColour(value);
 }
 
 void SplitScr::UpdateCamDist()
 {
-	for (std::list<Ogre::Camera*>::iterator it=mCameras.begin(); it != mCameras.end(); ++it)
+	for (std::list<Camera*>::iterator it=mCameras.begin(); it != mCameras.end(); ++it)
 		(*it)->setFarClipDistance(pSet->view_distance*1.1f);
 }
 
 //  CleanUp
 void SplitScr::CleanUp()
 {
-	for (std::list<Ogre::Viewport*>::iterator vpIt=mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
+	for (std::list<Viewport*>::iterator vpIt=mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
 	{
 		CompositorManager::getSingleton().removeCompositorChain(*vpIt);
 		mWindow->removeViewport( (*vpIt)->getZOrder() );
 	}
 	mViewports.clear();
 	
-	for (std::list<Ogre::Camera*>::iterator it=mCameras.begin(); it != mCameras.end(); ++it)
+	for (std::list<Camera*>::iterator it=mCameras.begin(); it != mCameras.end(); ++it)
 		mSceneMgr->destroyCamera(*it);
 	mCameras.clear();
 }
@@ -81,7 +81,7 @@ void SplitScr::Align()
 		mDims[i].Default();
 
 	//  Create the viewports (sets of 3d render & hud viewports) based on mNumViewports = numPlayers
-	for (int i=0; i < mNumViewports; i++)
+	for (int i=0; i < mNumViewports; ++i)
 	{
 		//  set dimensions for the viewports
 		float dims[4];  // left,top, width,height
@@ -122,7 +122,7 @@ void SplitScr::Align()
 		}
 		else
 		{
-			LogO("FATAL ERROR: Unsupported number of viewports: " + toStr(mNumViewports));
+			LogO("ERROR: Unsupported number of viewports: " + toStr(mNumViewports));
 			return;
 		}
 		#undef dim_
@@ -148,7 +148,7 @@ void SplitScr::Align()
 		mViewports.push_back(mWindow->addViewport( mCameras.back(), i+5, dims[0], dims[1], dims[2], dims[3]));
 	}
 	//  always create for 4 cars (replay offset camera view)
-	for (int i=mNumViewports; i < 4; i++)
+	for (int i=mNumViewports; i < 4; ++i)
 	{
 		mCameras.push_back(mSceneMgr->createCamera("PlayerCamera" + toStr(i)));
 		mCameras.back()->setPosition(Vector3(0,-100,0));
@@ -160,8 +160,8 @@ void SplitScr::Align()
 	// Create gui viewport if not already existing
 	if (!mGuiViewport)
 	{
-		mGuiSceneMgr = Ogre::Root::getSingleton().createSceneManager(ST_GENERIC);
-		Ogre::Camera* guiCam = mGuiSceneMgr->createCamera("GuiCam1");
+		mGuiSceneMgr = Root::getSingleton().createSceneManager(ST_GENERIC);
+		Camera* guiCam = mGuiSceneMgr->createCamera("GuiCam1");
 		mGuiViewport = mWindow->addViewport(guiCam, 100);
 		mGuiViewport->setVisibilityMask(RV_Hud);
 	}
@@ -176,8 +176,8 @@ void SplitScr::Align()
 void SplitScr::AdjustRatio()
 {
 	// Go through all viewports & cameras and adjust camera aspect ratio so that it fits to the viewport.
-	std::list<Ogre::Camera*>::iterator camIt = mCameras.begin();
-	for (std::list<Ogre::Viewport*>::iterator vpIt = mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
+	std::list<Camera*>::iterator camIt = mCameras.begin();
+	for (std::list<Viewport*>::iterator vpIt = mViewports.begin(); vpIt != mViewports.end(); ++vpIt)
 	{
 		(*camIt)->setAspectRatio( float((*vpIt)->getActualWidth()) / float((*vpIt)->getActualHeight()) );
 		++camIt;
@@ -187,7 +187,7 @@ void SplitScr::AdjustRatio()
 
 ///  pre viewport update
 //------------------------------------------------------------------------------------------------------------------
-void SplitScr::preViewportUpdate(const Ogre::RenderTargetViewportEvent& evt)
+void SplitScr::preViewportUpdate(const RenderTargetViewportEvent& evt)
 {
 	if (!pApp || pApp->bLoading || pApp->iLoad1stFrames > -1)  return;
 
@@ -225,26 +225,39 @@ void SplitScr::preViewportUpdate(const Ogre::RenderTargetViewportEvent& evt)
 		if (pSet->particles)
 			pApp->scn->UpdateWeather(evt.source->getCamera());
 
-		// Change FOV when boosting
-		if (pApp->pSet->boost_fov && carId < pApp->carModels.size())
+		int s = pApp->carModels.size();
+		if (carId < s)
 		{
-			CAR* pCar = pApp->carModels[carId]->pCar;
-			if (pCar)
+			CarModel* cm = pApp->carModels[carId];
+			//  split screen, show beam for cur car's viewport only
+			if (pSet->check_beam && !pApp->bHideHudBeam && pApp->pSet->game.local_players > 1)
 			{
-				float fov = pSet->fov_min + (pSet->fov_max - pSet->fov_min) * pCar->dynamics.fBoostFov;
-				evt.source->getCamera()->setFOVy(Degree(0.5f*fov));
-			}
-		}else
-			evt.source->getCamera()->setFOVy(Degree(0.5f*pSet->fov_min));
+				for (int i=0; i < s; ++i)
+				{	CarModel* c = pApp->carModels[i];
+					if (c->ndNextChk)
+						c->ndNextChk->setVisible(i==carId);
+			}	}
+				
+			//  change FOV when boosting
+			if (pApp->pSet->boost_fov)
+			{
+				CAR* pCar = cm->pCar;
+				if (pCar)
+				{
+					float fov = pSet->fov_min + (pSet->fov_max - pSet->fov_min) * pCar->dynamics.fBoostFov;
+					evt.source->getCamera()->setFOVy(Degree(0.5f*fov));
+				}
+			}else
+				evt.source->getCamera()->setFOVy(Degree(0.5f*pSet->fov_min));
+		}
 
-		//update soft particle Depth Target
-
+		//  update soft particle Depth Target
 		if (pApp->pSet->softparticles && pApp->pSet->all_effects)
 		{
-			Ogre::CompositorInstance  *compositor = Ogre::CompositorManager::getSingleton().getCompositorChain(evt.source)->getCompositor("gbuffer");
+			CompositorInstance  *compositor = CompositorManager::getSingleton().getCompositorChain(evt.source)->getCompositor("gbuffer");
 			if (compositor!=NULL)
 			{
-				Ogre::TexturePtr depthTexture =	compositor->getTextureInstance("mrt_output",2);
+				TexturePtr depthTexture =	compositor->getTextureInstance("mrt_output",2);
 				if (!depthTexture.isNull())
 					sh::Factory::getInstance().setTextureAlias("SceneDepth", depthTexture->getName());
 			}
@@ -262,7 +275,7 @@ void SplitScr::preViewportUpdate(const Ogre::RenderTargetViewportEvent& evt)
 }
 
 
-void SplitScr::postViewportUpdate(const Ogre::RenderTargetViewportEvent& evt)
+void SplitScr::postViewportUpdate(const RenderTargetViewportEvent& evt)
 {
 
 }

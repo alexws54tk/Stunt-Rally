@@ -11,6 +11,7 @@
 #include "CGui.h"
 #include "../road/Road.h"
 #include "common/MultiList2.h"
+#include "../sound/SoundMgr.h"
 #include <OgreTextureManager.h>
 using namespace std;
 using namespace Ogre;
@@ -61,7 +62,7 @@ void CGui::ChampsListUpdate()
 			liChamps->setSubItemNameAt(2,l, gcom->clrsDiff[ch.diff]+ TR("#{Diff"+toStr(ch.diff)+"}"));
 
 			liChamps->setSubItemNameAt(3,l, gcom->clrsDiff[std::min(8,ntrks*2/3+1)]+ iToStr(ntrks,3));
-			liChamps->setSubItemNameAt(4,l, gcom->clrsDiff[std::min(8,int(ch.time/3.f/60.f))]+" "+ CHud::StrTime2(ch.time));
+			liChamps->setSubItemNameAt(4,l, gcom->clrsDiff[std::min(8,int(ch.time/3.f/60.f))]+" "+ StrTime2(ch.time));
 			liChamps->setSubItemNameAt(5,l, ct == 0 || ct == ntrks ? "" :
 				clr+ fToStr(100.f * ct / ntrks,0,3)+" %");
 
@@ -157,7 +158,7 @@ void CGui::listChampChng(MyGUI::MultiList2* chlist, size_t id)
 
 	s1 += "\n";  s2 += "\n";
 	clr = gcom->clrsDiff[std::min(8,int(ch.time/3.f/60.f))];
-	s1 += TR("#80F0E0#{Time} [#{TimeMS}.]\n"); s2 += "#C0FFE0"+clr+ CHud::StrTime2(ch.time)+"\n";
+	s1 += TR("#80F0E0#{Time} [#{TimeMS}.]\n"); s2 += "#C0FFE0"+clr+ StrTime2(ch.time)+"\n";
 
 	s1 += "\n\n";  s2 += "\n\n";
 	int cur = progress[p].chs[pos].curTrack, all = data->champs->all[pos].trks.size();
@@ -229,9 +230,9 @@ void CGui::btnChampStageStart(WP)
 
 		///  sound  //)
 		if (iChSnd < 0)
-			pGame->snd_fail.Play();
+			pGame->snd_fail->start();
 		else
-			pGame->snd_win[iChSnd].Play();  //)
+			pGame->snd_win[iChSnd]->start();  //)
 
 		return;
 	}
@@ -331,9 +332,9 @@ void CGui::ChampionshipAdvance(float timeCur)
 
 	//  sound  //)
 	if (passed)
-		pGame->snd_stage.Play();
+		pGame->snd_stage->start();
 	else
-		pGame->snd_fail.Play();  //)
+		pGame->snd_fail->start();  //)
 
 
 	if (!last || (last && !passed))

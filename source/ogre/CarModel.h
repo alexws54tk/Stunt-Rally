@@ -39,6 +39,9 @@ public:
 	bool isGhostTrk() const {  return eType == CT_TRACK;  }
 
 	VehicleType vtype;
+
+	int numWheels;
+	void SetNumWheels(int n);
 	
 	//  ctor
 	CarModel(int index, int colorId, eCarType type, const std::string& name,
@@ -52,15 +55,17 @@ public:
 	
 	
 	///----  model params  from .car
-	float driver_view[3], hood_view[3];
-	float interiorOffset[3], boostOffset[3],boostSizeZ, thrusterOfs[4][3],thrusterSizeZ[4];
+	float driver_view[3], hood_view[3];  // mounted cameras
+	float interiorOffset[3], boostOffset[3],boostSizeZ;
+	float thrusterOfs[PAR_THRUST][3],thrusterSizeZ[PAR_THRUST];
+
 	std::vector<Ogre::Vector3> brakePos;  // flares
 	float brakeSize;  Ogre::ColourValue brakeClr;
+	std::string sBoostParName, sThrusterPar[PAR_THRUST];
 	bool bRotFix;
-	std::string sBoostParName, sThrusterPar[4];
 
-	float whRadius[4], whWidth[4];  // for tire trails
-	MATHVECTOR<float,3> whPos[4];
+	std::vector<float> whRadius, whWidth;  // for tire trails
+	std::vector<MATHVECTOR<float,3> > whPos;
 	QUATERNION<float> qFixWh[2];
 	float maxangle;  //steer
 
@@ -73,11 +78,11 @@ public:
 
 
 	///--------  Create
-	void Load(int startId=-1), Create(), CreateReflection();
+	void Load(int startId=-1), Create(), CreateReflection(), Destroy();
 	void CreatePart(Ogre::SceneNode* ndCar, Ogre::Vector3 vPofs,
 		Ogre::String sCar2, Ogre::String sCarI, Ogre::String sMesh, Ogre::String sEnt,
 		bool ghost, Ogre::uint32 visFlags,
-		Ogre::AxisAlignedBox* bbox=0, Ogre::String stMtr="", class VERTEXARRAY* var=0, bool bLogInfo=true);
+		Ogre::AxisAlignedBox* bbox=0, Ogre::String stMtr="", bool bLogInfo=true);
 
 	void LogMeshInfo(const Ogre::Entity* ent, const Ogre::String& name, int mul=1);
 	int all_subs, all_tris;  //stats
@@ -109,6 +114,8 @@ public:
 	
 	///----  Camera, can be null
 	FollowCamera* fCam;
+	int iCamFluid;  // id to fluids[], -1 none
+	float fCamFl;  // factor, close to surface
 	
 	//  Main node
 	Ogre::SceneNode* pMainNode, *ndSph;
@@ -164,13 +171,20 @@ public:
 	//--------  Particle systems
 	enum EParTypes {  PAR_Smoke=0, PAR_Mud, PAR_Dust, PAR_Water, PAR_MudHard, PAR_MudSoft, PAR_ALL };
 	//  par-wheels, boost-car rear, spaceship thruster, sparks-world hit
-	Ogre::ParticleSystem* par[PAR_ALL][4], *parBoost[2], *parThrust[8], *parHit;
-	Ogre::RibbonTrail* whTrail[4];  // tire trail
-	Ogre::Real whTemp[4];  // spin time, approx tire temp.
+	Ogre::ParticleSystem* par[PAR_ALL][MAX_WHEELS];
+	Ogre::ParticleSystem* parBoost[PAR_BOOST], *parThrust[PAR_THRUST*2], *parHit;
+	std::vector<Ogre::RibbonTrail*> whTrail;  // tire trail
+	std::vector<Ogre::Real> whTemp;  // spin time, approx tire temp.
 	
 	//  Wheels, Nodes
-	Ogre::SceneNode *ndWh[4], *ndWhE[4], *ndBrake[4], *ndNextChk;
+	std::vector<Ogre::SceneNode*> ndWh, ndWhE, ndBrake;
+	Ogre::SceneNode* ndNextChk;
 	Ogre::Entity* entNextChk;
+
+	//  to destroy
+	std::vector<Ogre::SceneNode*> vDelNd;		void ToDel(Ogre::SceneNode* nd);
+	std::vector<Ogre::Entity*> vDelEnt;			void ToDel(Ogre::Entity* ent);
+	std::vector<Ogre::ParticleSystem*> vDelPar;	void ToDel(Ogre::ParticleSystem* par);
 	
 		
 	//  brake state

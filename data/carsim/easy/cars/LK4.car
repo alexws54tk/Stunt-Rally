@@ -1,5 +1,4 @@
 drive = AWD
-version = 2
 # all positions have x,y,z dir going + to: right, front, up
 
 [ steering ]
@@ -47,6 +46,7 @@ friction = 0.4
 #  engine
 #---------------------------
 [ engine ]
+sound = engine
 position = 0.0, 1.33, 0.44
 mass = 180.0
 rpm-limit = 6300
@@ -55,7 +55,7 @@ start-rpm = 1000
 stall-rpm = 400
 fuel-consumption = 1e-9
 friction = 230
-torque-val-mul = 0.60
+torque-val-mul = 0.55
 torque-curve-00 = 1000, 355
 torque-curve-01 = 1500, 410
 torque-curve-02 = 2000, 450

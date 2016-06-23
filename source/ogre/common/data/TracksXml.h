@@ -3,6 +3,8 @@
 #include <map>
 #include <string>
 
+namespace tinyxml2	{	class XMLElement;	}
+
 
 struct Date
 {
@@ -18,7 +20,7 @@ struct Date
 //  Track's additional info
 //  shown on gui [Track] tab, in detailed view
 //  for sorting by date, difficulty, etc.
-
+//--------------------------------------------------------------------
 class TrackInfo
 {
 public:
@@ -58,11 +60,9 @@ public:
 };
 
 
-//--------------------------------------------------------------------
-
 //  user Track's info
-//  rating, stats ...
-
+//  rating, stats ...  not yet used
+//-------------------------------------
 class UserTrkInfo
 {
 public:
@@ -88,12 +88,10 @@ public:
 };
 
 
-//--------------------------------------------------------------------
-
 //  Car's additional info
 //  shown on gui [Car] tab, in detailed view
 //  for sorting by speed, type, etc.
-
+//--------------------------------------------------------------------
 class CarInfo
 {
 public:
@@ -110,7 +108,8 @@ public:
 };
 
 
-//  all tracks infos
+//  all cars infos
+//.................................
 class CarsXml
 {
 public:
@@ -123,5 +122,52 @@ public:
 	bool LoadXml(std::string file);
 	CarsXml()
 		:magic(0.010f)
+	{	}
+};
+
+
+//  car colors.ini  for Gui
+//--------------------------------------------------------------------
+class CarColor
+{
+public:
+	float hue, sat, val, refl, gloss;
+};
+
+
+//  all colors
+class ColorsXml
+{
+public:
+	std::vector<CarColor> v;
+	int perRow, imgSize;  // gui params
+	
+	//  methods
+	bool LoadIni(std::string file);
+	ColorsXml()
+		:perRow(12), imgSize(18)
+	{	}
+};
+
+
+//  Reverb presets on sceneries  ed combo
+//--------------------------------------------------------------------
+struct ReverbSet
+{
+	std::string name, descr,  // info
+		normal, cave, cavebig, pipe, pipebig, influid;  // reverb preset names
+};
+
+class ReverbsXml
+{
+public:
+	ReverbSet base;  // inherited defaults if not set
+	std::vector<ReverbSet> revs;
+	std::map<std::string, int> revmap;  // 0 if not found
+	
+	//  methods
+	bool LoadXml(std::string file);
+	void GetParams(tinyxml2::XMLElement* e, ReverbSet& r);
+	ReverbsXml()
 	{	}
 };

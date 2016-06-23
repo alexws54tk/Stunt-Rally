@@ -65,7 +65,7 @@ void CGui::ToolTexAlpha()
 			rgb[a++] = c.r * 255.f;
 			aa[b++] = c.a * 255.f;
 		}
-		Ogre::Image ic,ia;
+		Image ic,ia;
 		ic.loadDynamicImage(rgb, w,h, PF_R8G8B8);
 		ic.save(PATHMANAGER::Data()+"/"+n+"_d.png");
 		ia.loadDynamicImage(aa, w,h, PF_L8);
@@ -163,6 +163,13 @@ void CGui::ToolSceneXml()
 		int l = 17-trk.length();  // align
 		for (n=0; n < l; ++n)  trk += " ";
 
+		///  sound
+		if (sc.sReverbs=="")
+			LogO("No reverb! "+trk);
+		else
+		{	int id = data->reverbs->revmap[sc.sReverbs]-1;
+			if (id==-1)  LogO("Reverb not found! "+trk+"  "+sc.sReverbs);
+		}		
 		///  sky clrs
 		string s;
 		s += sc.lAmb.Check("amb");  s += sc.lDiff.Check("dif");  s += sc.lSpec.Check("spc");
@@ -207,6 +214,14 @@ void CGui::ToolSceneXml()
 		}
 		
 		///  road
+		int iLch = 0;
+		for (n=0; n < rd.mP.size(); ++n)
+			if (rd.mP[n].chkR > 0.f && rd.mP[n].loop > 0)
+				++iLch;
+		//LogO("Road: " + trk + "  Lch " + toStr(iLch));
+		if (iLch % 2 == 1)
+			LogO("Road: " + trk + " Not even loop chks count !  ");
+
 		for (n=0; n < MTRs; ++n)
 		{
 			String s = rd.sMtrRoad[n];
@@ -311,7 +326,7 @@ void CGui::ToolGhosts()
 		if (trk.substr(0,4) == "Test" && trk.substr(0,5) != "TestC")  continue;
 
 		//  records
-		tim.Load(PATHMANAGER::Records()+"/"+ sim+"/"+ trk+".txt", 0.f, pGame->error_output);
+		tim.Load(PATHMANAGER::Records()+"/"+ sim+"/"+ trk+".txt", 0.f);
 		float timeES=tMax, timeBest=tMax;
 		for (int c=0; c < cars.size(); ++c)
 		{
@@ -384,80 +399,82 @@ void CGui::ToolGhosts()
 void CGui::ToolGhostsConv()
 {
 	LogO("ALL ghosts Convert ---------");
-	Replay ghost;  TrackGhost trg;
-	bool reverse = false;  string sRev = reverse ? "_r" : "";
-	//for both dir sRev..
-	
-	//  foreach track
-	for (int i=0; i < data->tracks->trks.size(); ++i)
-	{	string track = data->tracks->trks[i].name;
-		if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
-		
-		//  load
-		ghost.Clear();  trg.Clear();
-		string file = PATHMANAGER::TrkGhosts()+"/original/"+ track + sRev + "_ES.rpl";
-		if (!PATHMANAGER::FileExists(file))
-		{}	//LogO("NOT found: "+file);
-		else
-		{	LogO("---------  "+track+"  ---------");
-			ghost.LoadFile(file);
-			
-			//  convert
-			MATHVECTOR<float,3> oldPos;  float oldTime = 0.f;
-			int num = ghost.GetNumFrames(), jmp = 0;
-			
-			for (int i=0; i < num; ++i)
-			{
-				const ReplayFrame& fr = ghost.GetFrame0(i);
-				TrackFrame tf;
-				tf.time = fr.time;
-				tf.pos = fr.pos;
-				tf.rot = fr.rot;  //tf.rot[0] = fr.rot[0] * 32767.f;  //..
-				tf.brake = fr.braking > 0 ? 1 : 0;
-				tf.steer = fr.steer * 127.f;
-				//LogO(toStr(fr.braking)+ " st " +fToStr(fr.steer,2,5));
+	Replay2 ghost;  TrackGhost trg;
+	for (int r=0; r < 2; ++r)
+	{
+		string sRev = r==1 ? "_r" : "";
 
-				#define Nth 3
-				if (i % Nth == Nth-1)  /// write every n-th frame only
-					trg.AddFrame(tf);
-
-				//  check for sudden pos jumps  (rewind used but not with _Tool_ go back time !)
-				if (i > 10 && i < num-1)  // ignore jumps at start or end
-				{	float dist = (fr.pos - oldPos).MagnitudeSquared();
-					if (dist > 16.f)  //1.f small
-					{	
-						LogO("!Jump at "+CHud::StrTime2(fr.time)+"  d "+fToStr(sqrt(dist),0)+"m");
-						++jmp;
-				}	}
-				//  check vel at start
-				if (i==50)
+		//  for each track
+		for (int i=0; i < data->tracks->trks.size(); ++i)
+		{	string track = data->tracks->trks[i].name;
+			if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
+			
+			//  load
+			ghost.Clear();  trg.Clear();
+			string file = PATHMANAGER::TrkGhosts()+"/original/"+ track + sRev + "_ES.rpl";
+			if (!PATHMANAGER::FileExists(file))
+			{}	//LogO("NOT found: "+file);
+			else
+			{	LogO("---------  "+track+"  ---------");
+				ghost.LoadFile(file);
+				
+				//  convert
+				MATHVECTOR<float,3> oldPos;  float oldTime = 0.f;
+				int num = ghost.GetNumFrames(), jmp = 0;
+				
+				for (int i=0; i < num; ++i)
 				{
-					float dist = (fr.pos - oldPos).Magnitude();
-					float vel = 3.6f * dist / (fr.time - oldTime);
-					bool bad = vel > 30;
-					if (bad)
-						LogO("!Vel at "+CHud::StrTime(fr.time)+" kmh "+fToStr(vel,0) + (bad ? "  BAD":""));
-				}
-				oldPos = fr.pos;  oldTime = fr.time;
-			}
-			if (jmp > 0)
-				LogO("!Jumps: "+toStr(jmp));
-		
-			//  save
-			string fsave = PATHMANAGER::TrkGhosts()+"/"+ track + sRev + ".gho";
-			trg.header.ver = 1;
-			trg.SaveFile(fsave);
-		}
-	}
+					const ReplayFrame2& fr = ghost.GetFrame0(i);
+					TrackFrame tf;
+					tf.time = fr.time;
+					tf.pos = fr.pos;  tf.rot = fr.rot;
+					tf.brake = fr.get(b_braking) > 0 ? 1 : 0;
+					tf.steer = fr.steer * 127.f;
+					//LogO(toStr(fr.braking)+ " st " +fToStr(fr.steer,2,5));
 
-	//  check missing
-	for (int i=0; i < data->tracks->trks.size(); ++i)
-	{	string track = data->tracks->trks[i].name;
-		if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
-		
-		string fsave = PATHMANAGER::TrkGhosts()+"/"+ track + sRev + ".gho";
-		if (!PATHMANAGER::FileExists(fsave))
-			LogO("!!  Missing for track: "+track);
+					#define Nth 2  // old was 1/3 from 160, new 1/2 from 80
+					if (i % Nth == Nth-1)  /// write every n-th frame only
+						trg.AddFrame(tf);
+
+					//  check for sudden pos jumps  (rewind used but not with _Tool_ go back time !)
+					if (i > 10 && i < num-1)  // ignore jumps at start or end
+					{	float dist = (fr.pos - oldPos).MagnitudeSquared();
+						if (dist > 16.f)  //1.f small
+						{	
+							LogO("!Jump at "+StrTime2(fr.time)+"  d "+fToStr(sqrt(dist),0)+"m");
+							++jmp;
+					}	}
+					//  check vel at start
+					if (i==50)
+					{
+						float dist = (fr.pos - oldPos).Magnitude();
+						float vel = 3.6f * dist / (fr.time - oldTime);
+						bool bad = vel > 30;
+						if (bad)
+							LogO("!Vel at "+StrTime(fr.time)+" kmh "+fToStr(vel,0) + (bad ? "  BAD":""));
+					}
+					oldPos = fr.pos;  oldTime = fr.time;
+				}
+				if (jmp > 0)
+					LogO("!Jumps: "+toStr(jmp));
+			
+				//  save
+				string fsave = PATHMANAGER::TrkGhosts()+"/"+ track + sRev + ".gho";
+				trg.header.ver = 1;
+				trg.SaveFile(fsave);
+			}
+		}
+
+		//  check missing
+		for (int i=0; i < data->tracks->trks.size(); ++i)
+		{	string track = data->tracks->trks[i].name;
+			if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
+			
+			string fsave = PATHMANAGER::TrkGhosts()+"/"+ track + sRev + ".gho";
+			if (!PATHMANAGER::FileExists(fsave))
+				if (r==1)	LogO("!Rev Missing for track: " + track);
+				else		LogO("!!   Missing for track: " + track);
+		}
 	}
 }
 
@@ -470,315 +487,55 @@ void CGui::ToolTestTrkGhosts()
 	
 	//  foreach track
 	String ss;
-	for (int i=0; i < data->tracks->trks.size(); ++i)
-	{	string track = data->tracks->trks[i].name;
-		//if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
-		
-		//  load
-		gho.Clear();
-		string file = PATHMANAGER::TrkGhosts()+"/"+ track + ".gho";
-		if (!PATHMANAGER::FileExists(file))
-		{	/*LogO("NOT found: "+file);/**/  }
-		else
-		{	LogO("---------  "+track+"  ---------");
-			gho.LoadFile(file);
+	for (int r=0; r < 2; ++r)
+	{	
+		string sRev = r==1 ? "_r" : "";
+		for (int i=0; i < data->tracks->trks.size(); ++i)
+		{	string track = data->tracks->trks[i].name;
+			//if (track.substr(0,4) == "Test" && track.substr(0,5) != "TestC")  continue;
 			
-			//  test
-			MATHVECTOR<float,3> oldPos;  float oldTime = 0.f;
-			int num = gho.getNumFrames(), jmp = 0;
-			for (int i=0; i < num; ++i)
-			{
-				const TrackFrame& fr = gho.getFrame0(i);
-
-				//  check for sudden pos jumps  (rewind used but not with _Tool_ go back time !)
-				if (i > 10 && i < num-1)  // ignore jumps at start or end
-				{	float dist = (fr.pos - oldPos).MagnitudeSquared();
-					if (dist > 6.f*6.f)  //par
-					{	
-						LogO("!Jump at "+CHud::StrTime2(fr.time)+"  d "+fToStr(sqrt(dist),0)+"m");
-						++jmp;
-				}	}
-				//  check vel at start
-				if (i==50/3)
+			//  load
+			gho.Clear();
+			string file = PATHMANAGER::TrkGhosts()+"/"+ track + sRev + ".gho";
+			if (!PATHMANAGER::FileExists(file))
+			{	/*LogO("NOT found: "+file);/**/  }
+			else
+			{	LogO("---------  "+track+"  ---------");
+				gho.LoadFile(file);
+				
+				//  test
+				MATHVECTOR<float,3> oldPos;  float oldTime = 0.f;
+				int num = gho.getNumFrames(), jmp = 0;
+				for (int i=0; i < num; ++i)
 				{
-					float dist = (fr.pos - oldPos).Magnitude();
-					float vel = 3.6f * dist / (fr.time - oldTime);
-					bool bad = vel > 30;
-					if (bad)
-						LogO("!Vel at "+CHud::StrTime(fr.time)+" kmh "+fToStr(vel,0) + (bad ? "  BAD":""));
+					const TrackFrame& fr = gho.getFrame0(i);
+
+					//  check for sudden pos jumps  (rewind used but not with _Tool_ go back time !)
+					if (i > 10 && i < num-1)  // ignore jumps at start or end
+					{	float dist = (fr.pos - oldPos).MagnitudeSquared();
+						if (dist > 6.f*6.f)  //par
+						{	
+							LogO("!Jump at "+StrTime2(fr.time)+"  d "+fToStr(sqrt(dist),0)+"m");
+							++jmp;
+					}	}
+					//  check vel at start
+					if (i==50/3)
+					{
+						float dist = (fr.pos - oldPos).Magnitude();
+						float vel = 3.6f * dist / (fr.time - oldTime);
+						bool bad = vel > 30;
+						if (bad)
+							LogO("!Vel at "+StrTime(fr.time)+" kmh "+fToStr(vel,0) + (bad ? "  BAD":""));
+					}
+					oldPos = fr.pos;  oldTime = fr.time;
 				}
-				oldPos = fr.pos;  oldTime = fr.time;
-			}
-			if (jmp > 0)
-			{	LogO("!Jumps: "+toStr(jmp));
-				ss += "\n" + track;
-		}	}
+				if (jmp > 0)
+				{	LogO("!Jumps: "+toStr(jmp));
+					ss += "\n" + track;
+			}	}
+		}
 	}
 	LogO("!! Jumps on tracks:"+ss);
-}
-
-#endif
-
-#ifdef SR_EDITOR
-
-//  ed presets
-///............................................................................................................................
-
-struct TerP{   public:	TerLayer t;     string trk;  };
-struct RoadP{  public:	TerLayer t;     string trk, mtr;  };
-struct GrassP{ public:	SGrassLayer t;  string trk;  };
-struct VegetP{ public:	PagedLayer t;   string trk;  };
-
-//  sort by
-bool compT(const TerP& a,   const TerP& b){    return a.t.texFile < b.t.texFile;  }
-//bool compR(const RoadP& a,  const RoadP& b){   return a.t.surfName < b.t.surfName;  }
-bool compR(const RoadP& a,  const RoadP& b){   return a.mtr < b.mtr;  }
-bool compG(const GrassP& a, const GrassP& b){  return a.t.material < b.t.material;  }
-bool compV(const VegetP& a, const VegetP& b){  return a.t.name < b.t.name;  }
-
-string getScn(const std::set<char>& sc)
-{
-	string s;
-	for (std::set<char>::const_iterator it = sc.begin(); it != sc.end(); ++it)
-		s += *it;
-	return s;
-}
-
-void CGui::ToolPresets()
-{
-	LogO("ALL PRESETS ---------");
-	const bool all = 1;  ///par
-	const int tc = 14;  // trk chars
-
-	std::map<string, int> it, ir, ig, ip;
-	std::list<TerP> vt;    std::list<TerP>::iterator vti;
-	std::list<RoadP> vr;   std::list<RoadP>::iterator vri;
-	std::list<GrassP> vg;  std::list<GrassP>::iterator vgi;
-	std::list<VegetP> vp;  std::list<VegetP>::iterator vpi;
-	
-
-	int i,n;
-	for (i=0; i < data->tracks->trks.size(); ++i)
-	{	///  foreach track
-		string trk = data->tracks->trks[i].name, path = gcom->pathTrk[0] +"/"+ trk +"/";
-		/**/if (!(trk[0] >= 'A' && trk[0] <= 'Z'))  continue;
-		/**/if (StringUtil::startsWith(trk,"test"))  continue;
-
-		Scene sc;  sc.LoadXml(path+ "scene.xml");
-		SplineRoad rd(app);  rd.LoadFile(path+ "road.xml");
-
-		//  terrain
-		for (n=0; n < TerData::ciNumLay; ++n)
-		{
-			const TerLayer& t = sc.td.layersAll[n];
-			if (t.on)
-			{	TerP p;  p.t = t;  p.trk = trk;
-				int id = it[t.texFile];
-				if (all || id == 0)
-				{	vt.push_back(p);  it[t.texFile] = vt.size();  }
-		}	}
-
-		//  road
-		TerLayer& r = sc.td.layerRoad[0];  //0..3
-		int id = ir[r.surfName];
-		if (all || id == 0)
-		{	RoadP p;  p.t = r;  p.trk = trk;  p.mtr = rd.sMtrRoad[0];
-			vr.push_back(p);  ir[r.surfName] = vr.size();
-		}
-
-		//  grass
-		for (n=0; n < Scene::ciNumGrLay; ++n)
-		{
-			const SGrassLayer& t = sc.grLayersAll[n];
-			if (t.on)
-			{	GrassP p;  p.t = t;  p.trk = trk;
-				int id = ig[t.material];
-				if (all || id == 0)
-				{	vg.push_back(p);  ig[t.material] = vg.size();  }
-		}	}
-
-		//  veget
-		for (n=0; n < Scene::ciNumPgLay; ++n)
-		{
-			const PagedLayer& t = sc.pgLayersAll[n];
-			if (t.on)
-			{	VegetP p;  p.t = t;  p.trk = trk;
-				int id = ip[t.name];
-				if (all || id == 0)
-				{	vp.push_back(p);  ip[t.name] = vp.size();  }
-		}	}
-	}
-
-	///  sort  . . . .
-	vt.sort(compT);  vr.sort(compR);  vg.sort(compG);  vp.sort(compV);
-
-	//  write out
-	std::stringstream o;  string z;
-	o << fixed;  o << left;  o << endl;
-	o << "<presets>\n";
-	std::set<char> sc;
-
-
-	///  terrain
-	//<texture on="1" file="adesert_rocky_d.jpg" fnorm="desert_rocky_n.jpg" scale="7.06531" surf="DesertFast" dust="0.8" dustS="1" mud="0.4" smoke="0" tclr="0.48 0.26 0.08 0.7" angMin="0" angMax="8.80626" angSm="4.29007" hMin="-300" hMax="300" hSm="20" nOn="0" noise="1" n_1="0" n2="0">
-	for (vti = vt.begin(); vti != vt.end(); ++vti)
-	{
-		TerLayer& t = (*vti).t;
-		string n = (*vti).trk;
-		if (t.texFile.substr(t.texFile.length()-4)==".jpg")  t.texFile = t.texFile.substr(0, t.texFile.length()-4);
-		if (t.texNorm.substr(t.texNorm.length()-4)==".jpg")  t.texNorm = t.texNorm.substr(0, t.texNorm.length()-4);
-
-		if (z != t.texFile)  {  o << endl;  sc.clear();  }  //
-		o << "<t a=\"";
-		o.width(tc);  o << n.substr(0,tc);
-		o << "\" sc=\"" << n[0] << "\" ";  sc.insert(n[0]);
-		o << " t=";  o.width(20);  o << "\""+t.texFile+"\"";  z = t.texFile; //
-		o << " n=";  o.width(20);  o << "\""+t.texNorm+"\"";
-		o << " s=";  o.width(7);  o << "\""+fToStr(t.tiling,2,4)+"\"";
-		o << " su=";  o.width(16);  o << "\""+t.surfName+"\"";  o.width(3);
-		o << " du=";  o << "\""+fToStr(t.dust ,1,3)+"\"";
-		o << " ds=";  o << "\""+fToStr(t.dustS,1,3)+"\"";
-		o << " md=";  o << "\""+fToStr(t.mud  ,1,3)+"\"";
-		//of << "\" sm=";  of << "\""+fToStr(t.smoke,1,4);
-		//o << " tr=";  o << "\""+fToStr(t.tclr.x,2,4)+" "+fToStr(t.tclr.y,2,4)+" "+fToStr(t.tclr.z,2,4)+" "+fToStr(t.tclr.w,1,3)+"\"";
-		o << "  aa=";  o.width(4);  o << "\""+fToStr(int(t.angMin),0,1)+"\"";
-		o << " ab=";   o.width(4);  o << "\""+fToStr(int(t.angMax),0,1)+"\"";
-		o << " z=\""+getScn(sc)+"\"";
-		o << " />\n";
-	}
-	o << endl;  z = "";  sc.clear();
-
-	///  road
-	//<texture road="1" surf="roadAdesert" dust="0.6" dustS="1" mud="0" smoke="0" tclr="0.54 0.3 0.22 0.7" />
-	for (vri = vr.begin(); vri != vr.end(); ++vri)
-	{
-		const TerLayer& t = (*vri).t;
-		string n = (*vri).trk, m = (*vri).mtr;
-
-		if (z != m)  {  o << endl;  sc.clear();  }  //
-		o << "<r a=\"";
-		o.width(tc);  o << n.substr(0,tc);  o.width(3);
-		o << "\" sc=\"" << n[0] << "\" ";   sc.insert(n[0]);
-		o << " m=";  o.width(16);  o << "\""+m+"\"";  z = m; //
-		o << "su=";  o.width(16);  o << "\""+t.surfName+"\"";  o.width(3);
-		o << " du=";  o << "\""+fToStr(t.dust ,1,3)+"\"";
-		o << " ds=";  o << "\""+fToStr(t.dustS,1,3)+"\"";
-		o << " md=";  o << "\""+fToStr(t.mud  ,1,4)+"\"";
-		//o << " tr=";  o << "\""+fToStr(t.tclr.x,2,4)+" "+fToStr(t.tclr.y,2,4)+" "+fToStr(t.tclr.z,2,4)+" "+fToStr(t.tclr.w,1,3)+"\"";
-		o << " z=\""+getScn(sc)+"\"";
-		o << " />\n";
-	}
-	o << endl;  z = "";  sc.clear();
-
-	///  grass
-	//<grass on="1" mtr="grass16r" clr="grClrWinter.png" dens="0.141625" chan="0" minSx="1.99746" maxSx="2.3799" minSy="1.56875" maxSy="1.92518" swayDistr="4" swayLen="0.2" swaySpeed="0.5" />
-	for (vgi = vg.begin(); vgi != vg.end(); ++vgi)
-	{
-		SGrassLayer& g = (*vgi).t;
-		string n = (*vgi).trk;
-		if (g.colorMap.substr(g.colorMap.length()-4)==".png")  g.colorMap = g.colorMap.substr(0, g.colorMap.length()-4);
-
-		if (z != g.material)  {  o << endl;  sc.clear();  }  //
-		o << "<g a=\"";
-		o.width(tc);  o << n.substr(0,tc);
-		o << "\" sc=\"" << n[0] << "\" ";  sc.insert(n[0]);
-		o << " g=";  o.width(19);  o << "\""+g.material+"\"";  z = g.material; //
-		o << " c=";  o.width(19);  o << "\""+g.colorMap+"\"";  o.width(4);
-		o << " xa=\"";  o << fToStr(g.minSx,2,4);
-		o << "\" xb=\"";  o << fToStr(g.maxSx,2,4);
-		o << "\" ya=\"";  o << fToStr(g.minSy,2,4);
-		o << "\" yb=\"";  o << fToStr(g.maxSy,2,4);
-		o << "\" z=\""+getScn(sc)+"\"";
-		o << " />\n";
-	}
-	o << endl;  z = "";  sc.clear();
-
-	///  veget
-	//<layer on="0" name="farn2.mesh" dens="0.102113" minScale="0.149999" maxScale="0.249999" ofsY="0" addTrRdDist="2" maxRdist="5" windFx="7.29999" windFy="0.0599962" maxTerAng="40.2636" minTerH="-100" maxTerH="100" maxDepth="5" />
-	for (vpi = vp.begin(); vpi != vp.end(); ++vpi)
-	{
-		PagedLayer& t = (*vpi).t;
-		string n = (*vpi).trk;
-		if (t.name.substr(t.name.length()-5)==".mesh")  t.name = t.name.substr(0, t.name.length()-5);
-
-		if (z != t.name)  {  o << endl;  sc.clear();  }  //
-		o << "<v a=\"";
-		o.width(tc);  o << n.substr(0,tc);
-		o << "\" sc=\"" << n[0] << "\" ";  sc.insert(n[0]);
-		o << " p=";  o.width(21);  o << "\""+t.name+"\"";  z = t.name; //
-		o << "  sa="; o << "\""+fToStr(t.minScale,2,4)+"\"";
-		o << " sb=";  o << "\""+fToStr(t.maxScale,2,4)+"\"";
-		o << "  wx="; o << "\""+fToStr(t.windFx,2,4)+"\"";
-		o << " wy=";  o << "\""+fToStr(t.windFy,3,5)+"\"";
-		o << "  ab=";  o << "\""+fToStr(t.maxTerAng,2,5)+"\"";
-		o << " z=\""+getScn(sc)+"\"";
-		o << " />\n";
-	}
-	o << "</presets>";
-	
-	
-	#if 0  ///  save file
-	ofstream f;
-	string p = PATHMANAGER::DataUser() + "/presets.xml";
-	f.open(p.c_str());
-	f << o.str();
-	f.close();
-	LogO("Saved: "+p);
-	#endif
-
-
-	///  check data/ not in presets  ......................................................
-	LogO("ALL PRESETS check ---------");
-	
-	//  Tex diff
-	strlist li;
-	std::string sData = PATHMANAGER::Data();
-	PATHMANAGER::DirList(sData + "/terrain2", li);
-
-	for (strlist::iterator i = li.begin(); i != li.end(); ++i)
-	if (!StringUtil::match(*i, "*.txt", false))
-	{
-		string s = *i;
-		//if (StringUtil::match(s, "*_n.*", false))
-		//	cmbTexNorm->addItem(s);
-		//else
-
-		if (StringUtil::match(s, "*_d.*", false))  //_T
-		{
-			s = s.substr(0, s.length()-4);  // no ext
-			const PTer* p = data->pre->GetTer(s);
-			if (!p)  LogO("Tex not in presets !! "+s);
-		}
-	}
-	
-	//  Grass
-	String sMat = sData +"/materials/scene/";
-	GetMaterialsMat(sMat+"grass.mat");
-	for (size_t i=0; i < vsMaterials.size(); ++i)
-	{
-		String s = vsMaterials[i];
-		if (s.length() > 5)  //!= "grass")
-		{
-			const PGrass* p = data->pre->GetGrass(s);
-			if (!p)  LogO("Grass not in presets !! "+s);
-		}
-	}
-
-	//  Trees  ---------------------
-	strlist lt;
-	PATHMANAGER::DirList(sData + "/trees", lt);
-	PATHMANAGER::DirList(sData + "/trees2", lt);
-	PATHMANAGER::DirList(sData + "/trees-old", lt);
-	for (strlist::iterator i = lt.begin(); i != lt.end(); ++i)
-		if (StringUtil::endsWith(*i,".mesh"))
-		{
-			string s = *i;
-			s = s.substr(0, s.length()-5);
-			const PVeget* p = data->pre->GetVeget(s);
-			if (!p)  LogO("Veget not in presets !! "+s);
-		}
-
-	LogO("ALL PRESETS ---------");
 }
 
 #endif

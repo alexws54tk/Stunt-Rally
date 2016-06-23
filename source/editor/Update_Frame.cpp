@@ -7,12 +7,13 @@
 #include "CApp.h"
 #include "CGui.h"
 #include "../road/Road.h"
+#include "../road/PaceNotes.h"
 #include "../paged-geom/PagedGeometry.h"
 #include "../ogre/common/MultiList2.h"
 #include "../ogre/common/RenderBoxScene.h"
-#include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
-//#include "LinearMath/btDefaultMotionState.h"
-//#include "BulletDynamics/Dynamics/btRigidBody.h"
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+//#include <LinearMath/btDefaultMotionState.h>
+//#include <BulletDynamics/Dynamics/btRigidBody.h>
 #include "../shiny/Main/Factory.hpp"
 #include "../sdl4ogre/sdlinputwrapper.hpp"
 #include "../paged-geom/GrassLoader.h"
@@ -236,8 +237,12 @@ if (pSet->bTrees)
 	if (road)  // road
 	{
 		road->bCastShadow = pSet->shadow_type >= Sh_Depth;
-		road->RebuildRoadInt();
-	}
+		bool full = road->RebuildRoadInt();
+		
+		if (full && scn->pace)  // pace
+		{	road->RebuildRoadPace();
+			scn->pace->Rebuild(road, scn->sc, pSet->trk_reverse);
+	}	}
 
 	///**  Render Targets update
 	if (edMode == ED_PrvCam)
@@ -370,6 +375,11 @@ bool App::frameStarted(const Ogre::FrameEvent& evt)
 		mFactory->setSharedParameter("posSph1", sh::makeProperty <sh::Vector4>(new sh::Vector4(p.x,p.y,p.z,r)));
 	}/**/
 	
+	
+	//  pace vis
+	if (scn->pace)
+		scn->pace->UpdVis(Vector3::ZERO, edMode == ED_PrvCam);
+
 	
 	//  upd terrain generator preview
 	if (bUpdTerPrv)

@@ -11,7 +11,6 @@
 #include "bezier.h"
 #include "aabb.h"
 #include "aabb_space_partitioning.h"
-#include "k1999.h"
 #include "optional.h"
 
 #include "track_object.h"
@@ -39,7 +38,7 @@ public:
 class TRACK
 {
 public:
-	TRACK(std::ostream & info, std::ostream & error);
+	TRACK();
 	~TRACK();
 	
 	class GAME* pGame;  // for tire map
@@ -95,8 +94,6 @@ public:
 	}
 
 private:
-	std::ostream & info_output;
-	std::ostream & error_output;
 
 	std::string texture_size;
 public:
@@ -109,8 +106,6 @@ private:
 	
 	//road information
 	std::list <ROADSTRIP> roads;
-	
-	bool CreateRacingLines();
 	
 	bool LoadObjects(
 		const std::string & trackpath,

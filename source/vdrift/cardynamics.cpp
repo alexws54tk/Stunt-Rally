@@ -127,13 +127,19 @@ void CARDYNAMICS::SetABS(const bool newabs)	{	abs = newabs;	}
 bool CARDYNAMICS::GetABSEnabled() const		{	return abs;		}
 bool CARDYNAMICS::GetABSActive() const
 {
-	return abs && ( abs_active[0]||abs_active[1]||abs_active[2]||abs_active[3] );
+	if (numWheels < 4)
+		return abs && ( abs_active[0]||abs_active[1] );
+	else
+		return abs && ( abs_active[0]||abs_active[1]||abs_active[2]||abs_active[3] );
 }
 void CARDYNAMICS::SetTCS(const bool newtcs)	{	tcs = newtcs;	}
 bool CARDYNAMICS::GetTCSEnabled() const		{	return tcs;		}
 bool CARDYNAMICS::GetTCSActive() const
 {
-	return tcs && ( tcs_active[0]||tcs_active[1]||tcs_active[2]||tcs_active[3] );
+	if (numWheels < 4)
+		return tcs && ( tcs_active[0]||tcs_active[1] );
+	else
+		return tcs && ( tcs_active[0]||tcs_active[1]||tcs_active[2]||tcs_active[3] );
 }
 
 
@@ -152,7 +158,7 @@ void CARDYNAMICS::AlignWithGround()
 	
 	/*Dbl min_height = 0;
 	bool no_min_height = true;
-	for (int i = 0; i < WHEEL_POSITION_SIZE; i++)
+	for (int i = 0; i < WHEEL_POSITION_SIZE; ++i)
 		{
 		Dbl height = wheel_contact[i].GetDepth() - 2 * tire[i].GetRadius();
 		if (height < min_height || no_min_height)
@@ -250,13 +256,13 @@ QUATERNION<Dbl> CARDYNAMICS::GetWheelSteeringAndSuspensionOrientation(WHEEL_POSI
 
 	QUATERNION<Dbl> camber;
 	Dbl camber_rotation = -suspension[wp].GetCamber() * PI_d/180.0;
-	if (wp == 1 || wp == 3)
+	if (wp%2 == 1)
 		camber_rotation = -camber_rotation;
 	camber.Rotate( camber_rotation, 1,0,0);
 
 	QUATERNION<Dbl> toe;
 	Dbl toe_rotation = suspension[wp].GetToe() * PI_d/180.0;
-	if (wp == 0 || wp == 2)
+	if (wp%2 == 0)
 		toe_rotation = -toe_rotation;
 	toe.Rotate( toe_rotation, 0,0,1);
 
@@ -294,7 +300,7 @@ void CARDYNAMICS::ApplyTorque(const MATHVECTOR<Dbl,3> & torque)
 
 void CARDYNAMICS::UpdateWheelVelocity()
 {
-	for(int i = 0; i < WHEEL_POSITION_SIZE; ++i)
+	for(int i = 0; i < numWheels; ++i)
 	{
 		wheel_velocity[i] = body.GetVelocity(wheel_position[i] - body.GetPosition());
 		//btVector3 offset = ToBulletVector(wheel_position[i]) - chassis->getCenterOfMassPosition();
@@ -304,7 +310,7 @@ void CARDYNAMICS::UpdateWheelVelocity()
 
 void CARDYNAMICS::UpdateWheelTransform()
 {
-	for(int i = 0; i < WHEEL_POSITION_SIZE; ++i)
+	for(int i = 0; i < numWheels; ++i)
 	{
 		wheel_position[i] = GetWheelPositionAtDisplacement(WHEEL_POSITION(i), suspension[i].GetDisplacementPercent());
 		wheel_orientation[i] = Orientation() * GetWheelSteeringAndSuspensionOrientation(WHEEL_POSITION(i));
@@ -340,7 +346,7 @@ char CARDYNAMICS::IsBraking() const
 {
 	//  true when any wheel is braking
 	if (fDamage < 100.f)
-	for (int w=0; w<4; ++w)
+	for (int w=0; w < numWheels; ++w)
 	{
 		WHEEL_POSITION wp = (WHEEL_POSITION)w;
 		if (GetBrake(wp).GetBrakeFactor() > 0

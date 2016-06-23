@@ -9,9 +9,9 @@
 #include "../road/Road.h"
 #include "../vdrift/pathmanager.h"
 
-#include "btBulletCollisionCommon.h"
-#include "btBulletDynamicsCommon.h"
-#include "BulletCollision/CollisionDispatch/btCollisionWorld.h"
+#include <btBulletCollisionCommon.h>
+#include <btBulletDynamicsCommon.h>
+#include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 
 #include <OgreTimer.h>
 #include <OgreTerrain.h>
@@ -316,7 +316,7 @@ struct RayResult : public btCollisionWorld::RayResultCallback
 		
 	virtual	btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
 	{
-		btCollisionObject* obj = rayResult.m_collisionObject;
+		const btCollisionObject* obj = rayResult.m_collisionObject;
 		if (obj->getUserPointer() != (void*)111)  // allow only road
 			return 1.0;
 

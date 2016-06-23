@@ -230,14 +230,15 @@ public:
 class FluidBox		/// fluid box shape - water, mud, etc.
 {
 public:
-	Ogre::Vector3 pos, rot, size;  Ogre::Vector2 tile;
+	Ogre::Vector3 pos, rot, size;
+	Ogre::Vector2 tile;
 
 	int id;  // auto set, index to FluidParams, -1 doesnt exist
 	std::string name;
 
 	class btCollisionObject* cobj;
 	int idParticles;  // auto set  index for wheel particles  -1 none
-	bool solid;  // auto set
+	bool solid, deep;  // auto set, from FluidParams
 	
 	FluidBox();
 };
@@ -257,10 +258,10 @@ public:
 	class btCollisionObject* co;
 	class btRigidBody* rb;
 	bool dyn;
+	class btTransform* tr1;  // 1st pos after load, for reset
 
 	Object();
 	void SetFromBlt();
-	static Ogre::Quaternion qrFix,qrFix2;
 };
 
 
@@ -298,7 +299,15 @@ public:
 	float windAmt;  //, windDirYaw, windTurbulFreq,windTurbulAmp;
 	float damageMul;  // reduce car damage in loops
 	float gravity;  // 9.81
-
+	
+	//  sound
+	std::string sAmbient, sReverbs;  void UpdRevSet();
+	struct RevSet  // copy from ReverbSet, name = sReverbs, from base if ""
+	{	std::string descr,
+			normal, cave, cavebig, pipe, pipebig, influid;
+	} revSet;
+	class ReverbsXml* pReverbsXml;  //! set this after Load
+	
 
 	//  particle types
 	Ogre::String  sParDust, sParMud, sParSmoke;
@@ -332,7 +341,7 @@ public:
 	
 	//  Fluids
 	std::vector<FluidBox> fluids;
-	class FluidsXml* pFluidsXml;  // set this after Load
+	class FluidsXml* pFluidsXml;  //! set this after Load
 	
 	//  Objects
 	std::vector<Object> objects;

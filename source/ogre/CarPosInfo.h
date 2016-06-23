@@ -3,8 +3,10 @@
 #include <OgreQuaternion.h>
 #include "../vdrift/mathvector.h"
 #include "../vdrift/quaternion.h"
+#include "../vdrift/cardefs.h"
+#include "half.hpp"
 
-struct ReplayFrame;
+struct ReplayFrame;  struct ReplayFrame2;
 class CAR;
 
 
@@ -19,20 +21,21 @@ struct PosInfo
 	//  car
 	Ogre::Vector3 pos, carY;
 	//  wheel
-	Ogre::Vector3 whPos[4];
-	Ogre::Quaternion rot, whRot[4];  float whR[4];
+	const static int W = MAX_WHEELS;
+	Ogre::Vector3 whPos[W];
+	Ogre::Quaternion rot, whRot[W];
 
-	float whVel[4], whSlide[4], whSqueal[4];
-	int whTerMtr[4],whRoadMtr[4];
+	float whVel[W], whSlide[W], whSqueal[W];
+	int whTerMtr[W],whRoadMtr[W];
 
 	float fboost,steer, percent;  char braking;
 	float hov_roll/*= sph_yaw for O*/, hov_throttle;
 
 	//  fluids
-	float whH[4],whAngVel[4], speed, whSteerAng[4];  int whP[4];
+	float whH[W],whAngVel[W], speed, whSteerAng[W];  int whP[W];
 	
 	//  hit sparks
-	float fHitTime, fParIntens,fParVel;//, fSndForce, fNormVel;
+	float fHitTime, /*?fHitForce,*/fParIntens,fParVel;
 	Ogre::Vector3 vHitPos,vHitNorm;  // world hit data
 	
 	//  camera view
@@ -44,21 +47,6 @@ struct PosInfo
 	
 	//  copy
 	void FromRpl(const ReplayFrame* rf);
+	void FromRpl2(const ReplayFrame2* rf, class CARDYNAMICS* cd);
 	void FromCar(CAR* pCar);
-};
-
-
-struct Axes
-{
-	static void Init();
-	static Ogre::Quaternion qFixCar,qFixWh;
-
-	//  to ogre from vdrift
-	static void toOgre(Ogre::Vector3& vOut, const MATHVECTOR<float,3>& vIn);
-	static Ogre::Vector3 toOgre(const MATHVECTOR<float,3>& vIn);
-
-	static Ogre::Quaternion toOgre(const QUATERNION<float>& vIn);  // car
-	static Ogre::Quaternion toOgre(const QUATERNION<double>& vIn);
-	static Ogre::Quaternion toOgreW(const QUATERNION<float>& vIn);  // wheels
-	static Ogre::Quaternion toOgreW(const QUATERNION<double>& vIn);
 };

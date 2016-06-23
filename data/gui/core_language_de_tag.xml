@@ -40,6 +40,7 @@
 	<Tag name="Prize">Preis</Tag>
 	<Tag name="Hint-2text">[Q] oder [W] gedrückt halten, um das Auto umzukippen, falls es kopfüber steht, oder während eines Sprungs. Abhängig von den Einstellungen könnte es etwas Treibstoff kosten.</Tag>
 	<Tag name="TreeDens">Baumdichte</Tag>
+	<Tag name="Vehicles">Fahrzeuge</Tag>
 	<Tag name="TipVegetGroups">Vegetationsgruppen (empfohlen: 4-6), Einfluss auf Performance.</Tag>
 	<Tag name="TBPosition">Position</Tag>
 	<Tag name="Pipe">Rohre</Tag>
@@ -72,6 +73,7 @@
 	<Tag name="Group">Gruppe</Tag>
 	<Tag name="ChampEndFinished">Die Meisterschaft wurde erfolgreich beendet!</Tag>
 	<Tag name="Negative">Negativ (abdunkeln)</Tag>
+	<Tag name="InputRoadLoopType">Loopingtyp wählen (Umschalt: zurück), an beiden Enden gleich halten</Tag>
 	<Tag name="PickSetParam">Param. mit f. Zeich. setzen:</Tag>
 	<Tag name="Hint-4">Schäden</Tag>
 	<Tag name="Camera">Kamera</Tag>
@@ -114,6 +116,7 @@
 	<Tag name="SleepMS">Schlafintervall (ms)</Tag>
 	<Tag name="TipTexTiling">Kachellänge der Textur (kleinerer Wert bedeutet mehr Wiederholungen)</Tag>
 	<Tag name="InputKeyboardEmulation">Tastaturemulation</Tag>
+	<Tag name="Reverb">Nachhall</Tag>
 	<Tag name="InputMapFlip">Umdrehen</Tag>
 	<Tag name="TBLast">Letzte</Tag>
 	<Tag name="TrackBankAng">Straßenbankett: Schnitt und Maximum, in Grad.</Tag>
@@ -130,6 +133,7 @@
 	<Tag name="Materials">Materialien</Tag>
 	<Tag name="InputMapResetGame">Spiel zurücksetzen</Tag>
 	<Tag name="smoke">Rauch</Tag>
+	<Tag name="ConvertAllRpl">Alle konvertieren (kleinere Größe)</Tag>
 	<Tag name="MouseCapture">Maus einfangen</Tag>
 	<Tag name="TipMinimapScrnEditor">Karte der ausgewählten Strecke, Sicht von oben.</Tag>
 	<Tag name="TipTerNoiseOnly">Geländewinkel und Höhenreichweiten ignorieren. Schicht wird nur dann auftauchen, wenn der Rauschfaktor in der anderen Schicht sanft übergeht.</Tag>
@@ -186,6 +190,7 @@
 	<Tag name="BackMenu">Zurück</Tag>
 	<Tag name="BasedOn">basiert auf</Tag>
 	<Tag name="UnitKg">kg</Tag>
+	<Tag name="PaceNextVisible">Gezeigte nächste</Tag>
 	<Tag name="NetLeaveGame">Spiel verlassen</Tag>
 	<Tag name="TipDustInt">Intensität der Staubpartikel.</Tag>
 	<Tag name="CameraInfo">Kamerainfo</Tag>
@@ -309,7 +314,7 @@
 	<Tag name="Effects">Effekte</Tag>
 	<Tag name="WidthSteps">Breiten-Steps</Tag>
 	<Tag name="Multiply">Multiplizieren</Tag>
-	<Tag name="Hint-6text">Halten sie [Strg] gedrückt, um den Boost zu benutzen. Abhängig von den Einstellungen wird Treibstoff für den Boost wahlweise jede Runde, über die Zeit oder unbegrenzt vergeben.</Tag>
+	<Tag name="FullSoundsInfo">Vollständige Toninfo in Graphen.</Tag>
 	<Tag name="GrassSway">Schaukeln</Tag>
 	<Tag name="TipSpeedSensitiveSteering">Reduziert die Lenkreichweite bei hoher Geschwindigkeit.</Tag>
 	<Tag name="HDRTab">HDR</Tag>
@@ -474,6 +479,7 @@
 	<Tag name="DidntPass">Durchgefallen</Tag>
 	<Tag name="Road_Cur">Akt</Tag>
 	<Tag name="InputMinimapType">Umschalt-F2/F3 - Vorh./nächst. Kartentyp</Tag>
+	<Tag name="CarDesc_BV">Großes extremes Motorrad mit fortgeschrittenem Elektromotor. Extrem schnell und leicht. Auch großartig für die Erkundung anderer Planeten. Verträgt Bodenwellen und schlechte Landungen nur schlecht.</Tag>
 	<Tag name="TipGrassSwayLen">Grasschwingungslänge (Skalierung).</Tag>
 	<Tag name="Road">Straße</Tag>
 	<Tag name="FluidCont">Gewässertyp</Tag>
@@ -574,6 +580,7 @@
 	<Tag name="CopyTrackSourceSame">Quellstrecke und aktuelle Strecke sind identisch.</Tag>
 	<Tag name="DisableEdit">Beim Bearbeiten deaktivieren</Tag>
 	<Tag name="LS_TER">Gelände wird geladen</Tag>
+	<Tag name="Vehicle">Fahrzeug</Tag>
 	<Tag name="Test">Test</Tag>
 	<Tag name="Continue">Fortsetzen</Tag>
 	<Tag name="TipDiffusePrev">Unscharfes Vorschaubild der Textur.</Tag>
@@ -590,7 +597,7 @@
 	<Tag name="Brush_ShapeN-gon">N-eck</Tag>
 	<Tag name="Brush_CurrentH">Akt.H</Tag>
 	<Tag name="TipDiffuseTex">Unscharfe Textur (Spiegelnd im Alphakanal).</Tag>
-	<Tag name="CarChange">Auto wechseln</Tag>
+	<Tag name="CarChange">Fahrzeugwechsel</Tag>
 	<Tag name="LTrFlDepth">max. Wassertiefe</Tag>
 	<Tag name="InputToggleVeget">V - Vegetation an/aus</Tag>
 	<Tag name="InputRoadMat">-,= - Weg-/Rohrmaterial (-1 versteckt)</Tag>
@@ -814,7 +821,7 @@
 	<Tag name="set2">Typ2</Tag>
 	<Tag name="auto">Auto</Tag>
 	<Tag name="TipWindInflH">Einfluss des Winds auf das Modell, Höhenskalierung.</Tag>
-	<Tag name="NetLocalPort">Lokaler Port</Tag>
+	<Tag name="ToolsTime">Warnung: Kann einige Minuten dauern!</Tag>
 	<Tag name="Bloom">Überstrahlung</Tag>
 	<Tag name="Silver">Silber</Tag>
 	<Tag name="TipWindInflL">Einfluss des Winds auf das Modell, Längenskalierung.</Tag>
@@ -869,6 +876,7 @@
 	<Tag name="ParAmount">Partikelanzahl</Tag>
 	<Tag name="TipFogClr">Nebelfarbe wenn schauen auf Sonne.</Tag>
 	<Tag name="speed">Geschw.</Tag>
+	<Tag name="NetLocalPort">Lokaler Port</Tag>
 	<Tag name="InputRoadYaw">- gieren</Tag>
 	<Tag name="WaterRefraction">Brechung</Tag>
 	<Tag name="SpecularPowerEm">Strahlungsstärke</Tag>
@@ -919,6 +927,7 @@
 	<Tag name="ImpostorDist">Bestrügerabstand</Tag>
 	<Tag name="Road1SurfOnly">Nur 1 Straßenbelag</Tag>
 	<Tag name="AlignSmooth">Glättungsgröße</Tag>
+	<Tag name="smooth">Glättung</Tag>
 	<Tag name="RollingResist">Rollwiderstand</Tag>
 	<Tag name="Hint-12text">Versuchen Sie es auch mit anderen Fahrzeugen; wir haben auch schwebende Raumschiffe und Strecken auf anderen Planeten.</Tag>
 	<Tag name="TipGrassDens">Wie häufig/selten wird das Gras auf Gelände aufkommen.</Tag>
@@ -967,6 +976,7 @@
 	<Tag name="TipModelPrev">Vorschaubild des Modells.</Tag>
 	<Tag name="InputRoadEdit">R - Straße bearbeiten</Tag>
 	<Tag name="jumps">Sprünge</Tag>
+	<Tag name="Road_NotReal">Nicht real</Tag>
 	<Tag name="TBBest">Beste</Tag>
 	<Tag name="Trilinear">Trilinear</Tag>
 	<Tag name="Near">Nah</Tag>
@@ -1023,6 +1033,7 @@
 	<Tag name="RplLoad">Laden</Tag>
 	<Tag name="UnitBhp">bhp</Tag>
 	<Tag name="CarDesc_M3">Ein sehr altes Auto mit einem schwachen Motor. Nicht für Sprünge geeignet. Wählen sie es, wenn sie langsam fahren wollen.</Tag>
+	<Tag name="CarDesc_Y7">Extrem schnelles Auto. Gib nicht zu lange Gas. Nur für schnelle glatte Strecken geeignet.</Tag>
 	<Tag name="InpSet_AxisHalfInv">Achse halb invertiert</Tag>
 	<Tag name="ScaleTerHeight">Geländehöhe</Tag>
 	<Tag name="TipTerLHSm">Höhenglättung (Übergang).</Tag>
@@ -1082,6 +1093,7 @@
 	<Tag name="ColSat">Sättigung</Tag>
 	<Tag name="Collis.">Kollis.</Tag>
 	<Tag name="Scenery">Landschaft</Tag>
+	<Tag name="Hint-6text">Halten sie [Strg] gedrückt, um den Boost zu benutzen. Abhängig von den Einstellungen wird Treibstoff für den Boost wahlweise jede Runde, über die Zeit oder unbegrenzt vergeben.</Tag>
 	<Tag name="RenameAllOld">Alle Alten umbenennen</Tag>
 	<Tag name="SC_Autumn">Herbst</Tag>
 	<Tag name="Track">Strecke</Tag>
@@ -1097,6 +1109,7 @@
 	<Tag name="InputPaintColor">C - Anstrichfarbe</Tag>
 	<Tag name="InputSubTabSpace">Leer - durch Untertabs blättern (Umschalt: zurück)</Tag>
 	<Tag name="TipSurfType">Typ der Oberfläche, bestimmt das Geräusch.</Tag>
+	<Tag name="InputRoadNotReal">Umschalt-8 – Unechte umschalten (nur für Deko bzw. Anpassung)</Tag>
 	<Tag name="NextStage">Nächste Etappe</Tag>
 	<Tag name="NetWaiting">Warten ...</Tag>
 	<Tag name="Peers">Peers</Tag>
@@ -1127,7 +1140,7 @@
 	<Tag name="GraphicsAll_VeryHigh">Sehr hoch</Tag>
 	<Tag name="SC_Moss">Moos</Tag>
 	<Tag name="Terrain">Gelände</Tag>
-	<Tag name="smooth">Glättung</Tag>
+	<Tag name="Pacenotes">Pacenotes</Tag>
 	<Tag name="Pitch">Nick</Tag>
 	<Tag name="Hint-10text">In Loopings wird die Kamera automatisch zu einer Innenansicht wechseln, um das Lenken innerhalb eines Loopings zu vereinfachen.</Tag>
 	<Tag name="InputNextOptTab">F2/F3 - Vorh./nächst. Tab (Alt: Untertab)</Tag>

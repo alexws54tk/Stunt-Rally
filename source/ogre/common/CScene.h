@@ -10,7 +10,7 @@ namespace Forests {  class PagedGeometry;  }
 namespace Ogre  {  class Terrain;  class TerrainGlobalOptions;  class TerrainGroup;  class StaticGeometry;
 	class Light;  class SceneNode;  class Camera;  class Texture;  class SceneManager;  class Entity;
 	class Rectangle2D;  class RenderTexture;  class Viewport;  class Root;  class ParticleSystem; }
-class App;  class Scene;  class WaterRTT;  class CData;  class SplineRoad;
+class App;  class Scene;  class WaterRTT;  class CData;  class SplineRoad;  class PaceNotes;
 
 
 class CScene
@@ -24,7 +24,7 @@ public:
 
 
 	//  Shadows
-	void changeShadows(), UpdShaderParams(), UpdPSSMMaterials();
+	void changeShadows(), UpdShaderParams(), UpdPaceParams(), UpdPSSMMaterials();
 	Ogre::Vector4 splitPoints;
 	Ogre::ShadowCameraSetupPtr mPSSMSetup;
 	
@@ -59,7 +59,8 @@ public:
 
 	//  Road
 	SplineRoad* road;
-	void DestroyRoad();
+	PaceNotes* pace;
+	void DestroyRoad(), DestroyPace();
 
 	//  vdrift track
 	Ogre::StaticGeometry* vdrTrack;
@@ -67,7 +68,7 @@ public:
 	
 	//  Vegetation
 	Forests::PagedGeometry *trees, *grass;
-	void CreateTrees(), DestroyTrees(), RecreateTrees(), updGrsTer();
+	void CreateTrees(), DestroyTrees(), RecreateTrees(), updGrsTer(), UpdCamera();
 
 
 	///  Terrain

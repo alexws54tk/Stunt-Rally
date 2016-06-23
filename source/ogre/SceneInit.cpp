@@ -10,15 +10,16 @@
 #include "CGui.h"
 #include "../vdrift/game.h"
 #include "../road/Road.h"
+#include "../road/PaceNotes.h"
+#include "../sound/SoundMgr.h"
+#include "../sound/SoundBaseMgr.h"
 #include "LoadingBar.h"
 #include "FollowCamera.h"
 #include "SplitScreen.h"
 #include "common/GraphView.h"
-
 #include "../network/gameclient.hpp"
 #include "../paged-geom/PagedGeometry.h"
 #include "../shiny/Main/Factory.hpp"
-
 #include <boost/thread.hpp>
 #include <MyGUI_OgrePlatform.h>
 #include "common/MyGUI_D3D11.h"
@@ -34,13 +35,14 @@ using namespace Ogre;
 void App::createScene()
 {
 	//  prv tex
-	prvView.Create(1024,1024,"PrvView");
-	prvRoad.Create(1024,1024,"PrvRoad");
-	 prvTer.Create(1024,1024,"PrvTer");
+	int k = 1024;
+	prvView.Create(k,k,"PrvView");
+	prvRoad.Create(k,k,"PrvRoad");
+	 prvTer.Create(k,k,"PrvTer");
 	//  ch stage
-	prvStCh.Create(1024,1024,"PrvStCh");
+	prvStCh.Create(k,k,"PrvStCh");
 	
-	scn->roadDens.Create(1025,1025,"RoadDens");
+	scn->roadDens.Create(k+1,k+1,"RoadDens");
 	
 	///  ter lay tex
 	for (int i=0; i < 6; ++i)
@@ -48,6 +50,8 @@ void App::createScene()
 		scn->texLayD[i].SetName("layD"+si);
 		scn->texLayN[i].SetName("layN"+si);
 	}
+	
+	mLoadingBar->loadTex.Create(1920,1200,"LoadingTex");
 
 	//  tex fil
 	MaterialManager::getSingleton().setDefaultTextureFiltering(TFO_ANISOTROPIC);
@@ -68,6 +72,7 @@ void App::createScene()
 	bool check = 0;
 	scn->data->Load(&pGame->surf_map, check);
 	scn->sc->pFluidsXml = scn->data->fluids;
+	scn->sc->pReverbsXml = scn->data->reverbs;
 
 	//  championships.xml, progress.xml
 	gui->Ch_XmlLoad();
@@ -88,16 +93,31 @@ void App::createScene()
 	userXml.SaveXml(PATHMANAGER::UserConfigDir() + "/user.xml");
 	#endif
 
-	LogO(String("**** ReplayFrame size: ") + toStr(sizeof(ReplayFrame)));	
-	LogO(String("**** ReplayHeader size: ") + toStr(sizeof(ReplayHeader)));	
+	//  rpl sizes
+	ushort u(0x1020);
+	struct SV{  std::vector<int> v;  };
+	int sr = sizeof(ReplayFrame), sv = sizeof(SV), sr2 = sizeof(ReplayFrame2)-3*sv, wh2 = sizeof(RWheel);
+
+	LogO(String("**** ReplayFrame size old: ") + toStr(sr)+"  new: "+toStr(sr2)+"+ wh: "+toStr(wh2)+"= "+toStr(sr2+4*wh2));
+	LogO(String("**** Replay test sizes: 12244: ") + toStr(sizeof(char))+","+toStr(sizeof(short))+
+		","+toStr(sizeof(half))+","+toStr(sizeof(float))+","+toStr(sizeof(int))+"  sv: "+toStr(sv)+
+		"   hi,lo 16,32: h "+toStr(*((uchar*)&u+1))+" l "+toStr(*((uchar*)&u)));
 
 	LogO(String("::: Time load xmls: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");  ti.reset();
 
 
+	///  rpl test-
+	#if 0
+	std::string file = PATHMANAGER::Ghosts() + "/normal/TestC4-ow_V2.rpl";
+	replay.LoadFile(file);
+	exit(0);
+	#endif
+	
+
 	///  _Tool_ ghosts times .......
 	#if 0
 	gui->ToolGhosts();
-	//mShutDown = true;  return;
+	//ShutDown();  return;
 	exit(0);
 	#endif
 
@@ -154,7 +174,7 @@ void App::createScene()
 //---------------------------------------------------------------------------------------------------------------
 ///  New Game
 //---------------------------------------------------------------------------------------------------------------
-void App::NewGame()
+void App::NewGame(bool force)
 {
 	//  actual loading isn't done here
 	isFocGui = false;
@@ -168,9 +188,10 @@ void App::NewGame()
 	while (bSimulating)
 		boost::this_thread::sleep(boost::posix_time::milliseconds(pSet->thread_sleep));
 
-	bRplPlay = 0;
+	bRplPlay = 0;  iRplSkip = 0;
 	pSet->rpl_rec = bRplRec;  // changed only at new game
 	gui->pChall = 0;
+	
 	
 	if (!newGameRpl)  // if from replay, dont
 	{
@@ -183,6 +204,9 @@ void App::NewGame()
 			pSet->game.local_players = 1;
 	}
 	newGameRpl = false;
+
+	///<>  same track
+	dstTrk = force || oldTrack != pSet->game.track || oldTrkUser != pSet->gui.track_user;
 
 	///  check if track exist ..
 	if (!PATHMANAGER::FileExists(gcom->TrkDir()+"scene.xml"))
@@ -197,7 +221,7 @@ void App::NewGame()
 		//todo: gui is stuck..
 		return;
 	}	
-	if (mWndRpl)  mWndRpl->setVisible(false);  // hide rpl ctrl
+	mWndRpl->setVisible(false);  // hide rpl ctrl
 
 	LoadingOn();
 	hud->Show(true);  // hide HUD
@@ -207,6 +231,7 @@ void App::NewGame()
 	curLoadState = 0;
 }
 
+
 /* *  Loading steps (in this order)  * */
 //---------------------------------------------------------------------------------------------------------------
 
@@ -214,18 +239,30 @@ void App::LoadCleanUp()  // 1 first
 {
 	updMouse();
 	
-	scn->DestroyFluids();  DestroyObjects(true);
+	if (dstTrk)
+	{	scn->DestroyFluids();  DestroyObjects(true);  }
 	
 	DestroyGraphs();  hud->Destroy();
 	
+	//  hide hud arrow,beam,pace
+	bool rplRd = bRplPlay /*|| scn->road && scn->road->getNumPoints() < 2/**/;
+	bHideHudBeam = rplRd;
+	bHideHudArr = rplRd || pSet->game.local_players > 1;
+	bool denyPace = gui->pChall && !gui->pChall->pacenotes;
+	bHideHudPace = bHideHudArr || denyPace;
+
 
 	// rem old track
-	if (resTrk != "")  mRoot->removeResourceLocation(resTrk);
-	resTrk = gcom->TrkDir() + "objects";
-	mRoot->addResourceLocation(resTrk, "FileSystem");
+	if (dstTrk)
+	{
+		if (resTrk != "")  mRoot->removeResourceLocation(resTrk);
+		LogO("------  Loading track: "+pSet->game.track);
+		resTrk = gcom->TrkDir() + "objects";
+		mRoot->addResourceLocation(resTrk, "FileSystem");
+	}
 	
 	//  Delete all cars
-	for (int i=0; i < carModels.size(); i++)
+	for (int i=0; i < carModels.size(); ++i)
 	{
 		CarModel* c = carModels[i];
 		if (c && c->fCam)
@@ -236,29 +273,33 @@ void App::LoadCleanUp()  // 1 first
 			if (i < 4)
 				pSet->cam_view[i] = carsCamNum[i];
 		}
-		if (c->pNickTxt)  {  mGui->destroyWidget(c->pNickTxt);  c->pNickTxt = 0;  }
 		delete c;
 	}
 	carModels.clear();  //carPoses.clear();
 
-
-	scn->DestroyTrees();
-	scn->DestroyWeather();
 	
-	scn->DestroyTerrain();
-	scn->DestroyRoad();
-
+	if (dstTrk)
+	{
+		scn->DestroyTrees();
+		scn->DestroyWeather();
+		
+		scn->DestroyTerrain();
+		scn->DestroyRoad();
+	}
 
 	///  destroy all
 	///  todo: check if track/car changed, dont recreate if same..
-	//mSceneMgr->getRootSceneNode()->removeAndDestroyAllChildren();  // destroy all scenenodes
-	mSceneMgr->destroyAllManualObjects();
-	mSceneMgr->destroyAllEntities();
-	mSceneMgr->destroyAllStaticGeometry();
-	scn->vdrTrack = 0;
-	//mSceneMgr->destroyAllParticleSystems();
-	mSceneMgr->destroyAllRibbonTrails();
-	mSplitMgr->mGuiSceneMgr->destroyAllManualObjects(); // !?..
+	if (dstTrk)
+	{
+		//mSceneMgr->getRootSceneNode()->removeAndDestroyAllChildren();  // destroy all scenenodes
+		mSceneMgr->destroyAllManualObjects();
+		mSceneMgr->destroyAllEntities();
+		mSceneMgr->destroyAllStaticGeometry();
+		scn->vdrTrack = 0;
+		//mSceneMgr->destroyAllParticleSystems();
+		mSceneMgr->destroyAllRibbonTrails();
+		mSplitMgr->mGuiSceneMgr->destroyAllManualObjects(); // !?..
+	}
 
 	// remove junk from previous tracks
 	MeshManager::getSingleton().unloadUnreferencedResources();
@@ -267,15 +308,16 @@ void App::LoadCleanUp()  // 1 first
 }
 
 
+//---------------------------------------------------------------------------------------------------------------
 void App::LoadGame()  // 2
 {
 	//  viewports
-	int numRplViews = std::max(1, std::min( replay.header.numPlayers, pSet->rpl_numViews ));
+	int numRplViews = std::max(1, std::min( int(replay.header.numPlayers), pSet->rpl_numViews ));
 	mSplitMgr->mNumViewports = bRplPlay ? numRplViews : pSet->game.local_players;  // set num players
 	mSplitMgr->Align();
 	mPlatform->getRenderManagerPtr()->setActiveViewport(mSplitMgr->mNumViewports);
 	
-	pGame->NewGameDoCleanup();
+	pGame->LeaveGame(dstTrk);
 
 	if (gui->bReloadSim)
 	{	gui->bReloadSim = false;
@@ -286,23 +328,32 @@ void App::LoadGame()  // 2
 			gui->updSld_TwkSurf(0);  }
 	}
 	
+	///<>  save old track
+	oldTrack = pSet->game.track;  oldTrkUser = pSet->game.track_user;
+	
+	
 	//  load scene.xml - default if not found
 	//  need to know sc->asphalt before vdrift car load
-	bool vdr = IsVdrTrack();
-	scn->sc->pGame = pGame;
-	scn->sc->LoadXml(gcom->TrkDir()+"scene.xml", !vdr/*for asphalt*/);
-	scn->sc->vdr = vdr;
-	pGame->track.asphalt = scn->sc->asphalt;  //*
-	pGame->track.sDefaultTire = scn->sc->asphalt ? "asphalt" : "gravel";  //*
-	if (scn->sc->denyReversed)
-		pSet->game.trackreverse = false;
+	if (dstTrk)
+	{
+		bool vdr = IsVdrTrack();
+		scn->sc->pGame = pGame;
+		scn->sc->LoadXml(gcom->TrkDir()+"scene.xml", !vdr/*for asphalt*/);
+		scn->sc->vdr = vdr;
+		pGame->track.asphalt = scn->sc->asphalt;  //*
+		pGame->track.sDefaultTire = scn->sc->asphalt ? "asphalt" : "gravel";  //*
+		if (scn->sc->denyReversed)
+			pSet->game.trackreverse = false;
 
-	pGame->NewGameDoLoadTrack();
+		pGame->NewGameDoLoadTrack();
 
-	if (!scn->sc->ter)
-		scn->sc->td.hfHeight = NULL;  // sc->td.layerRoad.smoke = 1.f;
+		if (!scn->sc->ter)
+			scn->sc->td.hfHeight = NULL;  // sc->td.layerRoad.smoke = 1.f;
+	}
+	//  set normal reverb
+	pGame->snd->sound_mgr->SetReverb(scn->sc->revSet.normal);
 	
-	// upd car abs,tcs,sss
+	//  upd car abs,tcs,sss
 	pGame->ProcessNewSettings();
 
 		
@@ -319,7 +370,7 @@ void App::LoadGame()  // 2
 		// TODO: This only handles one local player
 		CarModel::eCarType et = CarModel::CT_LOCAL;
 		int startId = i;
-		std::string carName = pSet->game.car[i], nick = "";
+		std::string carName = pSet->game.car[std::min(3,i)], nick = "";
 		if (mClient)
 		{
 			// FIXME: Various places assume carModels[0] is local
@@ -379,9 +430,9 @@ void App::LoadGame()  // 2
 	ghtrk.Clear();  vTimeAtChks.clear();
 	bool deny = gui->pChall && !gui->pChall->trk_ghost;
 	if (!bRplPlay /*&& pSet->rpl_trackghost?*/ && !mClient && !pSet->game.track_user && !deny)
-	if (!pSet->game.trackreverse)  // only not rev, todo..
 	{
-		std::string file = PATHMANAGER::TrkGhosts()+"/"+pSet->game.track+".gho";
+		std::string sRev = pSet->game.trackreverse ? "_r" : "";
+		std::string file = PATHMANAGER::TrkGhosts()+"/"+ pSet->game.track + sRev + ".gho";
 		if (ghtrk.LoadFile(file))
 		{
 			CarModel* c = new CarModel(i, 5, CarModel::CT_TRACK, "ES", mSceneMgr, pSet, pGame, scn->sc, 0, this);
@@ -396,8 +447,10 @@ void App::LoadGame()  // 2
 	{	pGame->timer.waiting = true;  //+
 		pGame->timer.end_sim = false;
 	}
+	
 	pGame->NewGameDoLoadMisc(pretime);
 }
+//---------------------------------------------------------------------------------------------------------------
 
 
 void App::LoadScene()  // 3
@@ -409,9 +462,11 @@ void App::LoadScene()  // 3
 	refreshCompositor();
 
 	//  fluids
-	scn->CreateFluids();
+	if (dstTrk)
+		scn->CreateFluids();
 
-	pGame->collision.world->setGravity(btVector3(0.0, 0.0, -scn->sc->gravity));
+	if (dstTrk)
+		pGame->collision.world->setGravity(btVector3(0.0, 0.0, -scn->sc->gravity));
 
 
 	//  set sky tex name for water
@@ -421,14 +476,17 @@ void App::LoadScene()  // 3
 	
 
 	//  weather
-	scn->CreateWeather();
+	if (dstTrk)
+		scn->CreateWeather();
 		
 	//  checkpoint arrow
 	bool deny = gui->pChall && !gui->pChall->chk_arr;
-	if (!bRplPlay && !deny)
-		hud->CreateArrow();
+	if (!bHideHudArr && !deny)
+		hud->arrow.Create(mSceneMgr, pSet);
 }
 
+
+//---------------------------------------------------------------------------------------------------------------
 void App::LoadCar()  // 4
 {
 	//  Create all cars
@@ -456,72 +514,68 @@ void App::LoadCar()  // 4
 		}
 		iCurPoses[i] = 0;
 	}
+	if (!dstTrk)  // reset objects if same track
+		pGame->bResetObj = true;
 	
 	
 	///  Init Replay  header, once
 	///=================----------------
+	ReplayHeader2& rh = replay.header, &gh = ghost.header;
 	if (!bRplPlay)
 	{
-	replay.InitHeader(pSet->game.track.c_str(), pSet->game.track_user, pSet->game.car[0].c_str(), !bRplPlay);
-	replay.header.numPlayers = mClient ? std::min(4, (int)mClient->getPeerCount()+1) : pSet->game.local_players;  // networked or splitscreen
-	replay.header.hue[0] = pSet->game.car_hue[0];  replay.header.sat[0] = pSet->game.car_sat[0];  replay.header.val[0] = pSet->game.car_val[0];
-	strcpy(replay.header.nicks[0], carModels[0]->sDispName.c_str());  // player's nick
-	replay.header.trees = pSet->game.trees;
-	replay.header.networked = mClient ? 1 : 0;
-	replay.header.num_laps = pSet->game.num_laps;
-	strcpy(replay.header.sim_mode, pSet->game.sim_mode.c_str());
+		replay.InitHeader(pSet->game.track.c_str(), pSet->game.track_user, !bRplPlay);
+		rh.numPlayers = mClient ? (int)mClient->getPeerCount()+1 : pSet->game.local_players;  // networked or splitscreen
+		replay.Clear();  replay.ClearCars();  // upd num plr
+		rh.trees = pSet->game.trees;
+
+		rh.networked = mClient ? 1 : 0;
+		rh.num_laps = pSet->game.num_laps;
+		rh.sim_mode = pSet->game.sim_mode;
 	}
 	rewind.Clear();
 
-	ghost.InitHeader(pSet->game.track.c_str(), pSet->game.track_user, pSet->game.car[0].c_str(), !bRplPlay);
-	ghost.header.numPlayers = 1;  // ghost always 1 car
-	ghost.header.hue[0] = pSet->game.car_hue[0];  ghost.header.sat[0] = pSet->game.car_sat[0];  ghost.header.val[0] = pSet->game.car_val[0];
-	ghost.header.trees = pSet->game.trees;
+	ghost.InitHeader(pSet->game.track.c_str(), pSet->game.track_user, !bRplPlay);
+	gh.numPlayers = 1;  // ghost always 1 car
+	ghost.Clear();  ghost.ClearCars();
+	gh.cars[0] = pSet->game.car[0];  gh.numWh[0] = carModels[0]->numWheels;
+	gh.networked = 0;  gh.num_laps = 1;
+	gh.sim_mode = pSet->game.sim_mode;
+	gh.trees = pSet->game.trees;
 
 	//  fill other cars (names, nicks, colors)
-	if (mClient)  // networked
-	{
-		int cars = std::min(4, (int)mClient->getPeerCount()+1);  // replay has max 4
-		for (int p = 1; p < cars; ++p)  // 0 is local car
-		{
-			CarModel* cm = carModels[p];
-			strcpy(replay.header.cars[p-1], cm->sDirname.c_str());
-			strcpy(replay.header.nicks[p], cm->sDispName.c_str());
-			replay.header.hue[p] = pSet->game.car_hue[p];  replay.header.sat[p] = pSet->game.car_sat[p];  replay.header.val[p] = pSet->game.car_val[p];
-		}
-	}
-	else  // splitscreen
-	if (!bRplPlay)
-	for (int p = 1; p < pSet->game.local_players; ++p)
-	{
-		strcpy(replay.header.cars[p-1], pSet->game.car[p].c_str());
-		strcpy(replay.header.nicks[p], carModels[p]->sDispName.c_str());
-		replay.header.hue[p] = pSet->game.car_hue[p];  replay.header.sat[p] = pSet->game.car_sat[p];  replay.header.val[p] = pSet->game.car_val[p];
-	}
-	//  set carModel nicks from networked replay
-	if (bRplPlay && replay.header.networked)
-	{
-		for (int p = 0; p < pSet->game.local_players; ++p)
-		{
-			CarModel* cm = carModels[p];
-			cm->sDispName = String(replay.header.nicks[p]);
-			cm->pNickTxt = hud->CreateNickText(p, cm->sDispName);
-		}
-	}
+	int p, pp = pSet->game.local_players;
+	if (mClient)  // networked, 0 is local car
+		pp = (int)mClient->getPeerCount()+1;
 
-	int c = 0;  // copy wheels R
-	for (std::list <CAR>::const_iterator it = pGame->cars.begin(); it != pGame->cars.end(); ++it,++c)
-		for (int w=0; w<4; ++w)
-			replay.header.whR[c][w] = (*it).GetTireRadius(WHEEL_POSITION(w));
+	if (!bRplPlay)
+	for (p=0; p < pp; ++p)
+	{
+		const CarModel* cm = carModels[p];
+		rh.cars[p] = cm->sDirname;  rh.nicks[p] = cm->sDispName;
+		rh.numWh[p] = cm->numWheels;
+	}
+	
+	//  set carModel nicks from networked replay
+	if (bRplPlay && rh.networked)
+	for (p=0; p < pp; ++p)
+	{
+		CarModel* cm = carModels[p];
+		cm->sDispName = rh.nicks[p];
+		cm->pNickTxt = hud->CreateNickText(p, cm->sDispName);
+	}
 }
+//---------------------------------------------------------------------------------------------------------------
+
 
 void App::LoadTerrain()  // 5
 {
-	scn->CreateTerrain(false, scn->sc->ter);  // common
-	GetTerMtrIds();
-	if (scn->sc->ter)
-		scn->CreateBltTerrain();
-	
+	if (dstTrk)
+	{
+		scn->CreateTerrain(false, scn->sc->ter);  // common
+		GetTerMtrIds();
+		if (scn->sc->ter)
+			scn->CreateBltTerrain();
+	}
 
 	for (int c=0; c < carModels.size(); ++c)
 		carModels[c]->terrain = scn->terrain;
@@ -529,20 +583,17 @@ void App::LoadTerrain()  // 5
 	sh::Factory::getInstance().setTextureAlias("CubeReflection", "ReflectionCube");
 
 
+	if (dstTrk)
 	if (scn->sc->vdr)  // vdrift track
-	{
 		CreateVdrTrack(pSet->game.track, &pGame->track);
-		//CreateRacingLine();  //?-
-		//CreateRoadBezier();  //-
-	}
 }
 
 void App::LoadRoad()  // 6
 {
-	CreateRoad();
+	CreateRoad();   // dstTrk inside
 		
-	if (scn->road && scn->road->getNumPoints() == 0 && hud->arrow.nodeRot)
-		hud->arrow.nodeRot->setVisible(false);  // hide when no road
+	if (hud->arrow.nodeRot)
+		hud->arrow.nodeRot->setVisible(pSet->check_arrow && !bHideHudArr);
 
 	//  boost fuel at start  . . .
 	//  based on road length
@@ -590,11 +641,15 @@ void App::LoadRoad()  // 6
 
 void App::LoadObjects()  // 7
 {
-	CreateObjects();
+	if (dstTrk)
+		CreateObjects();
 }
 
 void App::LoadTrees()  // 8
 {
+	if (!dstTrk)
+		scn->UpdCamera();  // paged cam
+	else
 	if (scn->sc->ter)
 		scn->CreateTrees();
 	
@@ -637,6 +692,7 @@ void App::LoadMisc()  // 9 last
 			//(*it)->fCam->mWorld = &(pGame->collision);
 	}	}
 	
+	if (dstTrk)
 	try {
 	TexturePtr tex = Ogre::TextureManager::getSingleton().getByName("waterDepth.png");
 	if (!tex.isNull())
@@ -763,24 +819,52 @@ void App::CreateRoad()
 {
 	///  road  ~ ~ ~
 	SplineRoad*& road = scn->road;
-	if (road)
-	{	road->DestroyRoad();  delete road;  road = 0;  }
+	Camera* cam = *mSplitMgr->mCameras.begin();
 
-	road = new SplineRoad(pGame);  // sphere.mesh
-	road->Setup("", 0.7,  scn->terrain, mSceneMgr, *mSplitMgr->mCameras.begin());
-	
-	String sr = gcom->TrkDir()+"road.xml";
-	road->LoadFile(gcom->TrkDir()+"road.xml");
+	//  road
+	if (dstTrk)
+	{
+		scn->DestroyRoad();//
+
+		road = new SplineRoad(pGame);  // sphere.mesh
+		road->Setup("", 0.7,  scn->terrain, mSceneMgr, cam);
+		
+		String sr = gcom->TrkDir()+"road.xml";
+		road->LoadFile(gcom->TrkDir()+"road.xml");
+	}else
+		road->mCamera = cam;  // upd
+
+
+	//  pace ~ ~
+	scn->DestroyPace();
+
+	if (!bHideHudPace)
+	{
+		scn->pace = new PaceNotes(pSet);
+		scn->pace->Setup(mSceneMgr, cam, scn->terrain, gui->mGui, mWindow);
+	}
+
 	
 	//  after road load we have iChk1 so set it for carModels
 	for (int i=0; i < carModels.size(); ++i)
 		carModels[i]->ResetChecks(true);
 
-	scn->UpdPSSMMaterials();  ///+~-
+	if (dstTrk)
+	{
+		scn->UpdPSSMMaterials();  ///+~-
 
-	road->bCastShadow = pSet->shadow_type >= Sh_Depth;
-	road->bRoadWFullCol = pSet->gui.collis_roadw;
+		road->bCastShadow = pSet->shadow_type >= Sh_Depth;
+		road->bRoadWFullCol = pSet->gui.collis_roadw;
 
-	road->RebuildRoadInt();
-	road->SetChecks();  // 2nd, upd
+		road->RebuildRoadInt();
+		road->SetChecks();  // 2nd, upd
+	}
+	
+
+	//  pace ~ ~
+	if (scn->pace)
+	{
+		road->RebuildRoadPace();  //todo: load only..
+		scn->pace->Rebuild(road, scn->sc, pSet->game.trackreverse);
+	}
 }

@@ -12,7 +12,7 @@ using namespace tinyxml2;
 
 
 //  old
-bool Scene::LoadStartPos(Ogre::String file)
+bool Scene::LoadStartPos(String file)
 {
 	CONFIGFILE param;
 	if (!param.Load(file))
@@ -61,7 +61,7 @@ string SColor::Check(string t)
 }
 
 //  load from old rgb
-void SColor::LoadRGB(Ogre::Vector3 rgb)
+void SColor::LoadRGB(Vector3 rgb)
 {
 	Vector3 u = rgb;
     float vMin = std::min(u.x, std::min(u.y, u.z));
@@ -146,7 +146,7 @@ bool Scene::LoadXml(String file, bool bTer)
 	XMLDocument doc;
 	XMLError er = doc.LoadFile(file.c_str());
 	if (er != XML_SUCCESS)
-	{	LogO("!Can't load scene.xml: "+file);  return false;  }
+	{	LogO("!Error: Can't load scene.xml: "+file);  return false;  }
 		
 	XMLElement* root = doc.RootElement();
 	if (!root)  return false;
@@ -196,7 +196,15 @@ bool Scene::LoadXml(String file, bool bTer)
 	{	LogO("!Old, loading start from track.txt");
 		String s = StringUtil::replaceAll(file,"scene.xml","track.txt");
 		if (!LoadStartPos(s))
-			LogO("!! Can't load start from "+s);
+			LogO("!Error: Can't load start from "+s);
+	}
+
+	///  sound
+	e = root->FirstChildElement("sound");
+	if (e)
+	{	a = e->Attribute("ambient");	if (a)  sAmbient = string(a);
+		a = e->Attribute("reverbs");	if (a)  sReverbs = string(a);
+		UpdRevSet();
 	}
 
 	///  sky
@@ -512,6 +520,12 @@ bool Scene::SaveXml(String file)
 		st.SetAttribute("rot",	s.c_str());
 	root.InsertEndChild(st);
 
+
+	TiXmlElement snd("sound");
+		snd.SetAttribute("ambient",		sAmbient.c_str());
+		snd.SetAttribute("reverbs",		sReverbs.c_str());
+	root.InsertEndChild(snd);
+	
 
 	TiXmlElement sky("sky");
 		sky.SetAttribute("material",	skyMtr.c_str());

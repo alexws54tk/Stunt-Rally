@@ -5,6 +5,7 @@
 #include "common/CScene.h"
 #include "../vdrift/settings.h"
 #include "../vdrift/game.h"
+#include "../road/PaceNotes.h"
 #include "CGame.h"
 #include "CHud.h"
 #include "CGui.h"
@@ -218,8 +219,8 @@ void CGui::comboRewind(CMB)
 	pSet->gui.rewind_type = val;
 }
 	
-void CGui::radKmh(WP wp){	Radio2(bRkmh, bRmph, true);   pSet->show_mph = false;  hud->Size();  }
-void CGui::radMph(WP wp){	Radio2(bRkmh, bRmph, false);  pSet->show_mph = true;   hud->Size();  }
+void CGui::radKmh(WP wp){	Radio2(bRkmh, bRmph, true);   pSet->show_mph = false;  hud->Size();  if (app->scn->pace) app->scn->pace->UpdTxt();  }
+void CGui::radMph(WP wp){	Radio2(bRkmh, bRmph, false);  pSet->show_mph = true;   hud->Size();  if (app->scn->pace) app->scn->pace->UpdTxt();  }
 
 void CGui::setSimMode(std::string mode)
 {
@@ -342,12 +343,12 @@ void CGui::chkHudShow(Ck*)
 void CGui::chkArrow(Ck*)
 {
 	if (hud->arrow.nodeRot)
-		hud->arrow.nodeRot->setVisible(pSet->check_arrow);
+		hud->arrow.nodeRot->setVisible(pSet->check_arrow && !app->bHideHudArr);
 }
 void CGui::chkBeam(Ck*)
 {
 	for (int i=0; i < app->carModels.size(); ++i)
-		app->carModels[i]->ShowNextChk(pSet->check_beam);
+		app->carModels[i]->ShowNextChk(pSet->check_beam && !app->bHideHudBeam);
 }
 
 //  hud minimap
@@ -361,6 +362,12 @@ void CGui::chkMinimap(Ck*)
 void CGui::chkMiniUpd(Ck*)
 {
 	hud->UpdMiniTer();
+}
+
+//  pacenotes
+void CGui::slUpd_Pace(SV*)
+{
+	app->scn->UpdPaceParams();
 }
 
 void CGui::chkReverse(Ck*){  gcom->ReadTrkStats();  }
@@ -408,7 +415,7 @@ void CGui::chkEffUpdShd(Ck*)
 	app->scn->changeShadows();
 }
 
-void CGui::slBloom(SV*)
+void CGui::slEffUpd(SV*)
 {
 	if (bGI)  app->refreshCompositor();
 }

@@ -4,6 +4,7 @@
 #include "data/SceneXml.h"
 #include "WaterRTT.h"
 #include "../../road/Road.h"
+#include "../../road/PaceNotes.h"
 
 #include <OgreTerrain.h>
 #include <OgreTerrainGroup.h>
@@ -16,7 +17,7 @@ CScene::CScene(App* app1)
 	,terrain(0), mTerrainGroup(0), mTerrainGlobals(0)
 	,horizon(0), mHorizonGroup(0), mHorizonGlobals(0)
 	,mWaterRTT(0)
-	,road(0)
+	,road(0), pace(0)
 	,vdrTrack(0)
 {
 	data = new CData();
@@ -26,11 +27,10 @@ CScene::CScene(App* app1)
 
 CScene::~CScene()
 {
-	delete road;
+	delete road;  delete pace;
 
 	OGRE_DELETE mHorizonGroup;
 	OGRE_DELETE mHorizonGlobals;
-
 	OGRE_DELETE mTerrainGroup;
 	OGRE_DELETE mTerrainGlobals;
 
@@ -43,8 +43,14 @@ CScene::~CScene()
 void CScene::DestroyRoad()
 {
 	if (!road)  return;
-	road->DestroyRoad();
+	road->Destroy();
 	delete road;  road = 0;
+}
+void CScene::DestroyPace()
+{
+	if (!pace)  return;
+	pace->Destroy();
+	delete pace;  pace = 0;
 }
 
 
@@ -52,10 +58,8 @@ void CScene::destroyScene()
 {
 	mWaterRTT->destroy();
 
-	DestroyRoad();
-
+	DestroyRoad();  DestroyPace();
 	DestroyTrees();
-
 	DestroyWeather();
 
 	delete[] sc->td.hfHeight;

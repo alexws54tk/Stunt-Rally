@@ -902,3 +902,103 @@ material O_glass
 	parent car_glass2
 	diffuseMap O_glass.png
 }
+
+
+//  Y7  -------------------------------
+material Y7_glass
+{
+	parent car_glass2
+	diffuseMap Y7_glass.png
+}
+material Y7_interior
+{
+	parent car_base
+	diffuseMap Y7_interior.png
+	specMap Y7_interior_spec.png
+	reflMap Y7_interior_refl.png
+	ambient 0.6 0.6 0.6
+	diffuse 0.6 0.6 0.6
+	specular 0.9 0.9 0.9 24
+	env_map true
+	fresnel true
+	fresnelScaleBiasPower 0.6 0.15 4
+}
+material Y7_wheel
+{
+	parent car_base
+	diffuseMap Y7_Tire.png
+	normalMap Y7_Tire_norm.png
+	specMap Y7_Tire_spec.png
+	reflMap Y7_Tire_refl.png
+	ambient 0.4 0.4 0.4
+	diffuse 0.4 0.4 0.4
+	specular 0.8 0.8 0.8 16
+	env_map true
+	fresnel true
+	fresnelScaleBiasPower 0.6 0.15 4
+}
+material Y7_brake
+{
+	parent car_base
+	diffuseMap Y7_Tire.png
+	normalMap Y7_Tire_norm.png
+	ambient 0.5 0.5 0.5
+	diffuse 0.5 0.5 0.5
+	specular 0.6 0.6 0.6 4
+}
+
+//  BV  -------------------------------
+material BV_interior
+{
+	parent car_base
+	diffuseMap BV_interior.png
+	reflMap BV_interior_refl.png
+	ambient 0.4 0.4 0.4
+	diffuse 0.4 0.4 0.4
+	specular 0.8 0.8 0.8 24
+	env_map true
+	fresnel true
+	fresnelScaleBiasPower 0.6 0.15 4
+}
+material BV_wheel
+{
+	parent car_wheel
+	diffuseMap BV_wheel.png
+	normalMap BV_wheel_norm.png
+	reflMap BV_wheel_refl.png
+	bump_scale 0.2
+	ambient 0.8 0.8 0.8
+	diffuse 0.6 0.6 0.6
+	specular 0.3 0.3 0.3 16
+	env_map true
+	//refl_amount 0.3
+	fresnel true
+	fresnelScaleBiasPower 0.6 0.15 4
+}
+
+//  U6  wip  -------------------------------
+material U6_interior
+{
+	parent car_base
+	diffuseMap U6_interior.png
+	reflMap U6_interior_refl.png
+	ambient 0.4 0.4 0.4
+	diffuse 0.4 0.4 0.4
+	specular 0.8 0.8 0.8 24
+	env_map true
+	fresnel true
+	fresnelScaleBiasPower 0.6 0.15 4
+}
+material U6_wheel
+{
+	parent car_base
+	diffuseMap U6_wheel.png
+	specMap U6_wheel_refl.png
+	reflMap U6_wheel_refl.png
+	ambient 0.5 0.5 0.5
+	diffuse 0.7 0.7 0.7
+	specular 1 1 1 8
+	env_map true
+	fresnel true
+	fresnelScaleBiasPower 0.7 0.15 4
+}

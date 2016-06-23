@@ -8,10 +8,10 @@
 	#include "../vdrift/game.h"
 #else
 	#include "../editor/CApp.h"
-	#include "../bullet/BulletCollision/CollisionShapes/btTriangleMesh.h"
-	#include "../bullet/BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h"
-	#include "../bullet/BulletCollision/CollisionDispatch/btCollisionObject.h"
-	#include "../bullet/BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
+	#include <BulletCollision/CollisionShapes/btTriangleMesh.h>
+	#include <BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h>
+	#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
+	#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
 #endif
 #include <OgreTerrain.h>
 #include <OgreMeshManager.h>
@@ -46,25 +46,39 @@ void SplineRoad::BuildSeg(
 	const DataRoad& DR,
 	const DataLod0& DL0, DataLod& DL, StatsLod& ST,
 	DataLodMesh& DLM, DataSeg& DS,
-	int segM)
+	int segM, bool full)
 {
-	int seg = (segM + DR.segs) % DR.segs;  // iterator
-	int seg1 = getNext(seg), seg0 = getPrev(seg);
-	/**/DS.seg = seg;  DS.seg1 = seg1;  DS.seg0 = seg0;
+	//  iterators
+	int seg = (segM + DR.segs) % DR.segs;
+	int seg1 = getNext(seg), seg0 = getPrev(seg), seg02 = getAdd(seg,-2);
+	DS.seg = seg;  DS.seg1 = seg1;  DS.seg0 = seg0;  // save
 	
 	//if (isLod0)
 	//LogR("[Seg]  cur: " + toStr(seg) + "/" + toStr(sNumO) + "  all:" + toStr(segs));/**/
 
 	//  on terrain  (whole seg)
 	DS.onTer = mP[seg].onTer && mP[seg1].onTer;
-	
-	// on merging segs only for game in whole road rebuild
-	// off for editor (partial, 4segs rebuild)
-	bool bNew = true, bNxt = true;
 
+
+	///  jump front wall, ends in air
+	//  0,1 for geometry, 2,1 for pacenotes
+	//  Test on tracks:  iDir<0: jumps, CrossJumps  iDir>0: Mars, Platforms
+	DS.jfw0 = iDir < 0 ?
+		!mP[seg ].onTer && mP[seg0].isnt() :
+		!mP[seg ].onTer && !mP[seg].isnt() && mP[seg0].isnt();
+	DS.jfw1 = iDir < 0 ?
+		!mP[seg1].onTer && mP[seg1].isnt() :
+		!mP[seg1].onTer && mP[seg1].isnt();
+	DS.jfw2 = iDir < 0 ?
+		!mP[seg0].onTer && mP[seg02].isnt() :
+		!mP[seg0].onTer && !mP[seg0].isnt() && mP[seg02].isnt();
+
+	
+	//  on merging segs only for game in whole road rebuild
+	//  off for editor (partial, 4segs rebuild)
+	bool bNew = true, bNxt = true;
 	if (bMerge)
-	{
-		bNew = (segM   == DR.sMin/*1st*/)  || DL.v_bMerge[seg];
+	{	bNew = (segM   == DR.sMin/*1st*/)  || DL.v_bMerge[seg];
 		bNxt = (segM+1 == DR.sMax/*last*/) || DL.v_bMerge[seg1];  // next is new
 	}
 	
@@ -135,7 +149,8 @@ void SplineRoad::BuildSeg(
 	//  Length  vertices
 	//------------------------------------------------------------------------------------
 	//LogR( " __len");
-	if (mP[seg].idMtr >= 0)  // -1 hides segment
+	bool vis = mP[seg].idMtr >= 0;  // visible, -1 hides segment
+	if (vis || DL.isPace)
 	for (int i = -1; i <= il+1; ++i)  // length +1  +2-gap
 	{
 		++DLM.iLmrg;
@@ -196,7 +211,7 @@ void SplineRoad::BuildSeg(
 
 		//LogR("   il="+toStr(i)+"/"+toStr(il)+"   iw="+toStr(iw)
 		//	/*+(bNew?"  New ":"") +(bNxt?"  Nxt ":"")/**/);
-		if (DS.hasBlend)
+		if (DS.hasBlend && vis)
 			++DLM.iLmrgB;
 		
 		
@@ -241,115 +256,153 @@ void SplineRoad::BuildSeg(
 			//  skirt ends, gap patch_
 			if (i == -1 || i == il+1)
 				vP -= vn * skH;
-
-
-			///  color  for minimap preview
-			//  ---~~~====~~~---
-			Real brdg = min(1.f, std::abs(vP.y - yTer) * 0.4f);  //par ] height diff mul
-			Real h = max(0.f, 1.f - std::abs(vP.y - yTer) / 30.f);  // for grass dens tex
 			
-			bool onP = mP[seg].onPipe > 0;
-			float pp = fPipe * 0.5f + (onP ? 0.5f : 0.f);  // put onP in pipe
 			
-			Vector4 c(brdg, pp, 1.f, h);
-			Vector2 vtc(tcw * 1.f /**2p..*/, tcL);
+			/// []()  pace  add marker  ~ ~ ~  ~ ~ ~
+			if (DL.isPace)
+			{
+				if (full && w == 1)  // center
+				if (i >= 0 && i < il)
+				{	//  add
+					PaceM pm;
+					bool op = mP[seg].onPipe > 0;
+					bool onP = op && (iDir > 0 ?		// start
+						mP[seg1].onPipe == 0 && i==il-1 : mP[seg0].onPipe == 0 && i==0);
+					bool onPe = op && (iDir > 0 ?		// end
+						mP[seg0].onPipe == 0 && i==0    : mP[seg1].onPipe == 0 && i==il-1);
+					float h = 3.f;  // above
+					if (mP[seg].onPipe == 1 && mP[seg].idMtr >= 0 ||
+						mP[seg0].onPipe == 1 && mP[seg0].idMtr >= 0)
+						h += wiMul;
+					
+					pm.pos  = vP + vN * h;  //par  + vw * 0.5f;
+					pm.pos2 = vP + vN * (h + 1.f) + vw * 0.5f;  // extra, info
+					
+					pm.onTer = DS.onTer && fPipe < 0.1f;
+					pm.loop = DL0.v0_Loop[seg];
+					pm.onPipe = onP;  pm.onPipeE = onPe;
+					bool no = mP[seg].notReal;
+					pm.jump = no? 0: DS.jfw2;  pm.jumpR = no? 0: DS.jfw1;
+
+					pm.vis = vis;  pm.notReal = no;
+					vPace.push_back(pm);
+				}
+
+			}else if (vis)
+			{
+				///  color  for minimap preview
+				//  ---~~~====~~~---
+				Real brdg = min(1.f, std::abs(vP.y - yTer) * 0.4f);  //par ] height diff mul
+				Real h = max(0.f, 1.f - std::abs(vP.y - yTer) / 30.f);  // for grass dens tex
+				
+				bool onP = mP[seg].onPipe > 0;
+				float pp = fPipe * 0.5f + (onP ? 0.5f : 0.f);  // put onP in pipe
+				
+				Vector4 c(brdg, pp, 1.f, h);
+				Vector2 vtc(tcw * 1.f /**2p..*/, tcL);
 
 
-			//>  data road
-			DLM.pos.push_back(vP);   DLM.norm.push_back(vN);
-			DLM.tcs.push_back(vtc);  DLM.clr.push_back(c);
-			if (DS.hasBlend)
-			{	//  alpha, blend 2nd mtr
-				c.z = std::max(0.f, std::min(1.f, float(i)/il ));  //rand()%1000/1000.f;
-				DLM.posB.push_back(vP);   DLM.normB.push_back(vN);
-				DLM.tcsB.push_back(vtc);  DLM.clrB.push_back(c);
+				//>  data road
+				DLM.pos.push_back(vP);   DLM.norm.push_back(vN);
+				DLM.tcs.push_back(vtc);  DLM.clr.push_back(c);
+				if (DS.hasBlend)
+				{	//  alpha, blend 2nd mtr
+					c.z = std::max(0.f, std::min(1.f, float(i)/il ));
+					DLM.posB.push_back(vP);   DLM.normB.push_back(vN);
+					DLM.tcsB.push_back(vtc);  DLM.clrB.push_back(c);
+				}
+				
+				//#  stats
+				if (vP.y < ST.stMinH)  ST.stMinH = vP.y;
+				if (vP.y > ST.stMaxH)  ST.stMaxH = vP.y;
+				if (w==w0)  vH0 = vP;  //#
+				if (w==w1)  vH1 = vP;
+			}
+		}	// width
+		
+		
+		/// []()  normal
+		if (!DL.isPace && vis)
+		{
+			//#  stats  banking angle
+			if (DL.isLod0 && i==0)
+			{
+				float h = (vH0.y - vH1.y), w = vH0.distance(vH1), d = fabs(h/w), a = asin(d)*180.f/PI_d;
+				ST.bankAvg += a;
+				if (a > ST.bankMax)  ST.bankMax = a;
+				//LogO("RD seg :" + toStr(seg)+ "  h " + fToStr(h,1,3)
+				//	+ "  w " + fToStr(w,1,3)+ "  d " + fToStr(d,1,3)+ "  a " + fToStr(a,1,3) );
 			}
 			
-			//#  stats
-			if (vP.y < ST.stMinH)  ST.stMinH = vP.y;
-			if (vP.y > ST.stMaxH)  ST.stMaxH = vP.y;
-			if (w==w0)  vH0 = vP;  //#
-			if (w==w1)  vH1 = vP;
-		}
-		
-		//#  stats  banking angle
-		if (DL.isLod0 && i==0)
-		{
-			float h = (vH0.y - vH1.y), w = vH0.distance(vH1), d = fabs(h/w), a = asin(d)*180.f/PI_d;
-			ST.bankAvg += a;
-			if (a > ST.bankMax)  ST.bankMax = a;
-			//LogO("RD seg :" + toStr(seg)+ "  h " + fToStr(h,1,3)
-			//	+ "  w " + fToStr(w,1,3)+ "  d " + fToStr(d,1,3)+ "  a " + fToStr(a,1,3) );
-		}
-		
 
-		///  wall ]
-		//------------------------------------------------------------------------------------
-		Real uv = 0.f;  // tc
-		bool onP = mP[seg].onPipe==2;
+			///  wall ]
+			//------------------------------------------------------------------------------------
+			Real uv = 0.f;  // tc
+			bool onP = mP[seg].onPipe==2;
 
-		if (!DS.onTer)
-		if (i >= 0 && i <= il)  // length +1
-		{
-			++DLM.iLmrgW;
-			Real tcLW = tc * (DS.pipe ? g_tcMulPW : g_tcMulW);
-			for (int w=0; w <= ciwW; ++w)  // width +1
+			if (!DS.onTer)
+			if (i >= 0 && i <= il)  // length +1
 			{
-				int pp = (p1 > 0.f || p2 > 0.f) ? (onP ? 2 : 1) : 0;  //  pipe wall
-				stWiPntW wP = wiPntW[w][pp];
-
-				if (trans)
+				++DLM.iLmrgW;
+				Real tcLW = tc * (DS.pipe ? g_tcMulPW : g_tcMulW);
+				for (int w=0; w <= ciwW; ++w)  // width +1
 				{
-					//  road to pipe, wall transition
-					wP.x *= 1.f + 0.5f * trp;  // broader
-					wP.y *= 1.f - 1.f * trp;   // flat
-					if (!onP)
-						wP.y -= 0.02f * trp;  //par move start down
+					int pp = (p1 > 0.f || p2 > 0.f) ? (onP ? 2 : 1) : 0;  //  pipe wall
+					stWiPntW wP = wiPntW[w][pp];
+
+					if (trans)
+					{
+						//  road to pipe, wall transition
+						wP.x *= 1.f + 0.5f * trp;  // broader
+						wP.y *= 1.f - 1.f * trp;   // flat
+						if (!onP)
+							wP.y -= 0.02f * trp;  //par move start down
+					}
+					uv += wP.uv;
+
+					Vector3 vP = vL0 + vw * wP.x + vn * wP.y;
+					Vector3 vN =     vwn * wP.nx + vn * wP.ny;  vN.normalise();
+
+					//>  data Wall
+					DLM.posW.push_back(vP);  DLM.normW.push_back(vN);
+					DLM.tcsW.push_back(0.25f * Vector2(uv, tcLW));  //par
 				}
-				uv += wP.uv;
-
-				Vector3 vP = vL0 + vw * wP.x + vn * wP.y;
-				Vector3 vN =     vwn * wP.nx + vn * wP.ny;  vN.normalise();
-
-				//>  data Wall
-				DLM.posW.push_back(vP);  DLM.normW.push_back(vN);
-				DLM.tcsW.push_back(0.25f * Vector2(uv, tcLW));  //par
 			}
-		}
-		
-		
-		///  columns |
-		//------------------------------------------------------------------------------------
-		if (!DS.onTer && mP[seg].cols > 0)
-		if (i == il/2)  // middle-
-		{	
-			++DLM.iLmrgC;
-			const Real r = g_ColRadius;  // column radius
+			
+			
+			///  columns |
+			//------------------------------------------------------------------------------------
+			if (!DS.onTer && mP[seg].cols > 0)
+			if (i == il/2)  // middle-
+			{	
+				++DLM.iLmrgC;
+				const Real r = g_ColRadius;  // column radius
 
-			for (int h=0; h <= 1; ++h)  // height
-			for (int w=0; w <= iwC; ++w)  // width +1
-			{
-				Real a = Real(w)/iwC *2*PI_d,  //+PI_d/4.f
-					x = r*cosf(a), y = r*sinf(a);
+				for (int h=0; h <= 1; ++h)  // height
+				for (int w=0; w <= iwC; ++w)  // width +1
+				{
+					Real a = Real(w)/iwC *2*PI_d,  //+PI_d/4.f
+						x = r*cosf(a), y = r*sinf(a);
 
-				Vector3 vlXZ(vl.x, 0.f, vl.z);  Real fl = 1.f/max(0.01f, vlXZ.length());
-				Vector3 vP = vL0 + fl * vl * x + vwn * y;
-				Real yy;
+					Vector3 vlXZ(vl.x, 0.f, vl.z);  Real fl = 1.f/max(0.01f, vlXZ.length());
+					Vector3 vP = vL0 + fl * vl * x + vwn * y;
+					Real yy;
 
-				if (h==0)  // top below road
-				{	yy = vn.y * (onP ? 1.5f : -0.8f);  //par
-					vP.y += yy;
+					if (h==0)  // top below road
+					{	yy = vn.y * (onP ? 1.5f : -0.8f);  //par
+						vP.y += yy;
+					}
+					else  // bottom below ground
+					{	yy = (mTerrain ? mTerrain->getHeightAtWorldPosition(vP) : 0.f) - 0.3f;
+						vP.y = yy;
+					}
+
+					Vector3 vN(vP.x-vL0.x, 0.f, vP.z-vL0.z);  vN.normalise();
+
+					//>  data Col
+					DLM.posC.push_back(vP);  DLM.normC.push_back(vN);
+					DLM.tcsC.push_back(Vector2( Real(w)/iwC * 4, vP.y * g_tcMulC ));  //par
 				}
-				else  // bottom below ground
-				{	yy = (mTerrain ? mTerrain->getHeightAtWorldPosition(vP) : 0.f) - 0.3f;
-					vP.y = yy;
-				}
-
-				Vector3 vN(vP.x-vL0.x, 0.f, vP.z-vL0.z);  vN.normalise();
-
-				//>  data Col
-				DLM.posC.push_back(vP);  DLM.normC.push_back(vN);
-				DLM.tcsC.push_back(Vector2( Real(w)/iwC * 4, vP.y * g_tcMulC ));  //par
 			}
 		}
 		
@@ -362,6 +415,11 @@ void SplineRoad::BuildSeg(
 	//  Length  vertices
 	//------------------------------------------------------------------------------------
 	
+
+	/// []()  pace
+	if (DL.isPace)
+		return;  // no mesh
+		
 
 	//  lod vis points
 	if (DL.isLod0)
@@ -533,8 +591,6 @@ void SplineRoad::createSeg_Meshes(
 
 	///  wall ]
 	//------------------------------------------------------------------------------------
-	DS.jfw0 = !mP[seg].onTer  && mP[seg0].idMtr < 0;  // jump front wall, ends in air
-	DS.jfw1 = !mP[seg1].onTer && mP[seg1].idMtr < 0;
 	bool pipeGlass = DS.pipe && bMtrPipeGlass[ mP[seg].idMtr ];  // pipe glass mtr
 	if (wall)
 	{

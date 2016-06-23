@@ -102,10 +102,6 @@ void CScene::changeShadows()
 	int fTex = ciShadowSizesA[pSet->shadow_size], fTex2 = fTex/2;
 	int num = pSet->shadow_count;
 
-	sh::Vector4* fade = new sh::Vector4(
-		pSet->shadow_dist,
-		pSet->shadow_dist * 0.6, // fade start
-		0, 0);
 
 	sh::Factory* mFactory = app->mFactory;
 	SceneManager* mSceneMgr = app->mSceneMgr;
@@ -171,7 +167,7 @@ void CScene::changeShadows()
 		mSceneMgr->setShadowTextureCasterMaterial(bDepth ? "shadowcaster_default" : "");
 	}
 
-	mSceneMgr->setShadowColour(Ogre::ColourValue(0,0,0,1));
+	mSceneMgr->setShadowColour(ColourValue(0,0,0,1));
 
 
 #if 0  /// TEST overlays

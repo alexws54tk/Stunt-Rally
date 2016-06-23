@@ -14,11 +14,12 @@
 #include "game.h"  //
 #include "../ogre/CGame.h"  //
 #include <iostream>
+using namespace Ogre;
 
 
 ///  hit callback (accurate)
 //-------------------------------------------------------------------------------------------------------------------------------
-void IntTickCallback(btDynamicsWorld *world, btScalar timeStep)
+void IntTickCallback(btDynamicsWorld* world, btScalar timeStep)
 {
 	COLLISION_WORLD* cw = (COLLISION_WORLD*)world->getWorldUserInfo();
 
@@ -26,8 +27,8 @@ void IntTickCallback(btDynamicsWorld *world, btScalar timeStep)
 	for (int i=0; i < numManifolds; ++i)  // pairs
 	{
 		btPersistentManifold* contactManifold = world->getDispatcher()->getManifoldByIndexInternal(i);
-		btCollisionObject* bA = static_cast<btCollisionObject*>(contactManifold->getBody0());
-		btCollisionObject* bB = static_cast<btCollisionObject*>(contactManifold->getBody1());
+		const btCollisionObject* bA = contactManifold->getBody0();
+		const btCollisionObject* bB = contactManifold->getBody1();
 	
 		if (bA->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE ||
 			bB->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE)  // ignore triggers
@@ -78,8 +79,8 @@ void DynamicsWorld::solveConstraints(btContactSolverInfo& solverInfo)
 	for (int i=0; i < numManifolds; ++i)  // pairs
 	{
 		btPersistentManifold* contactManifold =  getDispatcher()->getManifoldByIndexInternal(i);
-		btCollisionObject* bA = static_cast<btCollisionObject*>(contactManifold->getBody0());
-		btCollisionObject* bB = static_cast<btCollisionObject*>(contactManifold->getBody1());
+		const btCollisionObject* bA = contactManifold->getBody0();
+		const btCollisionObject* bB = contactManifold->getBody1();
 	
 		void* pA = bA->getUserPointer(), *pB = bB->getUserPointer();
 		//if (pA && pB)
@@ -130,8 +131,8 @@ void COLLISION_WORLD::Update(double dt, bool profiling)
 		CARDYNAMICS* cd = hit.sdCar->pCarDyn;
 		cdOld = cd;
 		btVector3 vcar = hit.vel;
-		Ogre::Vector3 vel(vcar[0], vcar[2], -vcar[1]);
-		Ogre::Vector3 norm(hit.norm.getX(), hit.norm.getZ(), -hit.norm.getY());
+		Vector3 vel(vcar[0], vcar[2], -vcar[1]);
+		Vector3 norm(hit.norm.getX(), hit.norm.getZ(), -hit.norm.getY());
 		float vlen = vel.length(), normvel = abs(vel.dotProduct(norm));
 
 		if (cd->vtype == V_Sphere)  // no damage when rolling
@@ -143,7 +144,7 @@ void COLLISION_WORLD::Update(double dt, bool profiling)
 			{	vlen *= 0.02f;  normvel *= 0.02f;  force *= 0.1f;  }
 		}
 		//  Sparks emit params
-		cd->vHitPos = Ogre::Vector3(hit.pos.getX(), hit.pos.getZ(), -hit.pos.getY());
+		cd->vHitPos = Vector3(hit.pos.getX(), hit.pos.getZ(), -hit.pos.getY());
 		cd->vHitNorm = norm + vel * 0.1f;
 		cd->fParVel = 3.0f + 0.4f * vlen;
 		cd->fParIntens = 10.f + 30.f * vlen;
@@ -156,9 +157,9 @@ void COLLISION_WORLD::Update(double dt, bool profiling)
 			cd->cam_force = cd->cam_force + f;  // cam bounce hit ++
 
 		(-cd->GetOrientation()).RotateVector(cN);
-		cd->vHitCarN = Ogre::Vector3(cN[0],cN[1],cN[2]);  cd->vHitCarN.normalise();
+		cd->vHitCarN = Vector3(cN[0],cN[1],cN[2]);  cd->vHitCarN.normalise();
 		//----  factors
-		if (!cd->vtype != V_Sphere)
+		if (cd->vtype != V_Sphere)
 		{
 			float sx = cd->vHitCarN.x, sy = cd->vHitCarN.y, sz = cd->vHitCarN.z;
 			float nx = fabs(sx), ny = fabs(sy), nz = fabs(sz);
@@ -180,15 +181,12 @@ void COLLISION_WORLD::Update(double dt, bool profiling)
 			cd->fHitDmgA *= 0.4f;
 		}
 		
-		//float a = (vlen*0.1f*powf(force, 0.2f) - 0*cd->fHitForce4);
 		float a = std::min(1.f, std::min(vlen, 2.2f)*0.1f*powf(force, 0.4f) );
 		if (a > cd->fCarScrap)  cd->fCarScrap = a;
 
 		float b = std::min(1.f, 0.2f*force);
 		if (b > cd->fCarScreech)  cd->fCarScreech = b;
 			
-		//if (cd->fHitForce4 > 0.f)
-		//	cd->fHitForce4 -= 0.04f * dt;
 		//if (force > 0.5f)
 			cd->fHitTime = 1.f;
 		///LogO("upd sf " + toStr(cd->fHitForce) + " force " + toStr(hit.force) + " vel " + toStr(vlen) + " Nvel " + toStr(normvel));
@@ -197,7 +195,6 @@ void COLLISION_WORLD::Update(double dt, bool profiling)
 	{
 		cdOld->fHitForce  = 0.f;
 		cdOld->fHitForce2 = 0.f;
-		//cdOld->fHitForce4 = 0.f;
 		//cdOld->fHitForce3 = cdOld->fHitTime;
 		//cdOld = 0;
 	}
@@ -252,20 +249,20 @@ void COLLISION_WORLD::DebugDrawScene()
 {
 }
 
-btCollisionObject * COLLISION_WORLD::AddCollisionObject(const MODEL & model)
+btCollisionObject* COLLISION_WORLD::AddCollisionObject(const MODEL& model)
 {
-	btCollisionObject * col = new btCollisionObject();
-	btCollisionShape * shape = AddMeshShape(model);
+	btCollisionObject* col = new btCollisionObject();
+	btCollisionShape* shape = AddMeshShape(model);
 	col->setCollisionShape(shape);
 	world->addCollisionObject(col);
 	return col;
 }
 
-btRigidBody * COLLISION_WORLD::AddRigidBody(const btRigidBody::btRigidBodyConstructionInfo & info,
+btRigidBody* COLLISION_WORLD::AddRigidBody(const btRigidBody::btRigidBodyConstructionInfo & info,
 	bool car, bool bCarsCollis)
 {
-	btRigidBody * body = new btRigidBody(info);
-	btCollisionShape * shape = body->getCollisionShape();
+	btRigidBody* body = new btRigidBody(info);
+	btCollisionShape* shape = body->getCollisionShape();
 	//body->setActivationState(DISABLE_DEACTIVATION);  //!-for chassis only
 	//body->setCollisionFlags
 	#define  COL_CAR  (1<<2)
@@ -275,19 +272,7 @@ btRigidBody * COLLISION_WORLD::AddRigidBody(const btRigidBody::btRigidBodyConstr
 	return body;
 }
 
-void COLLISION_WORLD::AddAction(btActionInterface * action)
-{
-	world->addAction(action);
-	actions.push_back(action);
-}
-
-void COLLISION_WORLD::AddConstraint(btTypedConstraint * constraint, bool disableCollisionsBetweenLinked)
-{
-	world->addConstraint(constraint, disableCollisionsBetweenLinked);
-	constraints.push_back(constraint);
-}
-
-void COLLISION_WORLD::SetTrack(TRACK * t)
+void COLLISION_WORLD::SetTrack(TRACK* t)
 {
 	assert(t);
 	
@@ -315,10 +300,10 @@ void COLLISION_WORLD::SetTrack(TRACK * t)
 	{
 		if(ob->HasSurface())
 		{
-			MODEL & model = *ob->GetModel();
+			MODEL& model = *ob->GetModel();
 			btIndexedMesh mesh = GetIndexedMesh(model);
 			trackMesh->addIndexedMesh(mesh);
-			//const TRACKSURFACE * surface = ob->GetSurface();
+			//const TRACKSURFACE* surface = ob->GetSurface();
 			//trackSurface.push_back(surface);
 		}
 	}
@@ -333,7 +318,7 @@ void COLLISION_WORLD::SetTrack(TRACK * t)
 	if (!objects.empty())
 	{
 		// can not use QuantizedAabbCompression because of the track size
-		btCollisionShape * trackShape = new btBvhTriangleMeshShape(trackMesh, false);
+		btCollisionShape* trackShape = new btBvhTriangleMeshShape(trackMesh, false);
 		trackObject = new btCollisionObject();
 		trackObject->setCollisionShape(trackShape);
 		trackObject->setUserPointer(NULL);
@@ -344,8 +329,8 @@ void COLLISION_WORLD::SetTrack(TRACK * t)
 
 btIndexedMesh COLLISION_WORLD::GetIndexedMesh(const MODEL & model)
 {
-	const float * vertices;  int vcount;
-	const int * faces;  int fcount;
+	const float* vertices;  int vcount;
+	const int* faces;  int fcount;
 	model.GetVertexArray().GetVertices(vertices, vcount);
 	model.GetVertexArray().GetFaces(faces, fcount);
 	
@@ -353,18 +338,18 @@ btIndexedMesh COLLISION_WORLD::GetIndexedMesh(const MODEL & model)
 	
 	btIndexedMesh mesh;
 	mesh.m_numTriangles = fcount / 3;
-	mesh.m_triangleIndexBase = (const unsigned char *)faces;
+	mesh.m_triangleIndexBase = (const unsigned char*)faces;
 	mesh.m_triangleIndexStride = sizeof(int) * 3;
 	mesh.m_numVertices = vcount;
-	mesh.m_vertexBase = (const unsigned char *)vertices;
+	mesh.m_vertexBase = (const unsigned char*)vertices;
 	mesh.m_vertexStride = sizeof(float) * 3;
 	mesh.m_vertexType = PHY_FLOAT;
 	return mesh;
 }
 
-btCollisionShape * COLLISION_WORLD::AddMeshShape(const MODEL & model)
+btCollisionShape* COLLISION_WORLD::AddMeshShape(const MODEL & model)
 {
-	btTriangleIndexVertexArray * mesh = new btTriangleIndexVertexArray();
+	btTriangleIndexVertexArray* mesh = new btTriangleIndexVertexArray();
 	mesh->addIndexedMesh(GetIndexedMesh(model));
 	btCollisionShape * shape = new btBvhTriangleMeshShape(mesh, true);
 	
@@ -378,7 +363,7 @@ btCollisionShape * COLLISION_WORLD::AddMeshShape(const MODEL & model)
 struct MyRayResultCallback : public btCollisionWorld::RayResultCallback
 {
 	MyRayResultCallback(const btVector3 & rayFromWorld, const btVector3 & rayToWorld,
-			const btCollisionObject * exclude, bool ignoreCars, bool camTilt, bool camDist)//, bool ignoreGlass)
+			const btCollisionObject* exclude, bool ignoreCars, bool camTilt, bool camDist)//, bool ignoreGlass)
 		: m_rayFromWorld(rayFromWorld), m_rayToWorld(rayToWorld), m_exclude(exclude), m_shapeId(0)
 		, bIgnoreCars(ignoreCars), bCamTilt(camTilt), bCamDist(camDist)
 	{	}
@@ -390,12 +375,12 @@ struct MyRayResultCallback : public btCollisionWorld::RayResultCallback
 	btVector3	m_hitPointWorld;
 	
 	int m_shapeId;
-	const btCollisionObject * m_exclude;
+	const btCollisionObject* m_exclude;
 	bool bIgnoreCars,bCamTilt,bCamDist;
 		
 	virtual	btScalar	addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace)
 	{
-		btCollisionObject* obj = rayResult.m_collisionObject;
+		const btCollisionObject* obj = rayResult.m_collisionObject;
 		if (obj == m_exclude)
 			return 1.0;
 					
@@ -456,19 +441,19 @@ struct MyRayResultCallback : public btCollisionWorld::RayResultCallback
 bool COLLISION_WORLD::CastRay(
 	const MATHVECTOR<float,3> & origin,
 	const MATHVECTOR<float,3> & direction, const float length,
-	const btCollisionObject * caster,
-	COLLISION_CONTACT & contact,  //out
+	const btCollisionObject* caster,
+	COLLISION_CONTACT& contact,  //out
 	CARDYNAMICS* cd, int w, //out pCarDyn, nWheel
 	bool ignoreCars, bool camTilt/*or treat fluids as solid*/, bool camDist) const
 {
 	btVector3 from = ToBulletVector(origin);
-	btVector3 to = ToBulletVector(origin + direction * length);
+	btVector3 to = ToBulletVector(origin + direction* length);
 	MyRayResultCallback res(from, to, caster, ignoreCars, camTilt, camDist);
 	
 	//  data to set
 	MATHVECTOR<float,3> pos, norm;  float dist;
-	const TRACKSURFACE * surf = TRACKSURFACE::None();
-	btCollisionObject * col = NULL;  const BEZIER * bzr = NULL;
+	const TRACKSURFACE* surf = TRACKSURFACE::None();
+	const btCollisionObject* col = NULL;  const BEZIER* bzr = NULL;
 	
 	world->rayTest(from, to, res);
 
@@ -558,10 +543,10 @@ bool COLLISION_WORLD::CastRay(
 				if (cd)
 				{	cd->iWhOnRoad[w] = 0;   cd->whRoadMtr[w] = 0;  cd->whTerMtr[w] = 1;  }
 
-				/*void * ptr = col->getUserPointer();
+				/*void* ptr = col->getUserPointer();
 				if (ptr != NULL)
 				{
-					const TRACK_OBJECT * const obj = reinterpret_cast <const TRACK_OBJECT * const> (ptr);
+					const TRACK_OBJECT* const obj = reinterpret_cast <const TRACK_OBJECT* const> (ptr);
 					assert(obj);
 					surf = obj->GetSurface();
 				}
@@ -582,7 +567,7 @@ bool COLLISION_WORLD::CastRay(
 			MATHVECTOR<float,3> bs_pos(origin[1], origin[2], origin[0]);  //bezierspace
 			MATHVECTOR<float,3> bs_dir(direction[1], direction[2], direction[0]);
 			MATHVECTOR<float,3> colpos, colnorm;
-			const BEZIER * colpatch = NULL;
+			const BEZIER* colpatch = NULL;
 			bool bezierHit = track->CastRay(bs_pos, bs_dir, length, colpos, colpatch, colnorm);
 			if (bezierHit)
 			{
@@ -617,16 +602,17 @@ void COLLISION_WORLD::DebugPrint(std::ostream & out)
 }
 
 //  Clear - delete bullet pointers
+//-------------------------------------------------------------	
 void COLLISION_WORLD::Clear()
 {
 	cdOld = NULL;
 	track = NULL;
-	if(trackObject)
+	if (trackObject)
 	{
 		delete trackObject->getCollisionShape();
 		trackObject = NULL;
 	}
-	if(trackMesh)
+	if (trackMesh)
 	{
 		delete trackMesh;
 		trackMesh = NULL;
@@ -634,21 +620,21 @@ void COLLISION_WORLD::Clear()
 	//trackSurface.resize(0);
 
 	// remove constraint before deleting rigid body
-	for(int i = 0; i < constraints.size(); i++)
+	int i,c;
+	for (i = 0; i < constraints.size(); ++i)
 	{
 		world->removeConstraint(constraints[i]);
 		delete constraints[i];
 	}
 	constraints.resize(0);
 	
-	for(int i = world->getNumCollisionObjects() - 1; i >= 0; i--)
+	for (i = world->getNumCollisionObjects() - 1; i >= 0; i--)
 	{
 		btCollisionObject* obj = world->getCollisionObjectArray()[i];
 		btRigidBody* body = btRigidBody::upcast(obj);
 		if (body && body->getMotionState())
-		{
 			delete body->getMotionState();
-		}
+
 		world->removeCollisionObject(obj);
 
 		ShapeData* sd = (ShapeData*)obj->getUserPointer();
@@ -656,30 +642,26 @@ void COLLISION_WORLD::Clear()
 		delete obj;
 	}
 	
-	for(int i = 0; i < shapes.size(); i++)
+	for (i = 0; i < shapes.size(); ++i)
 	{
-		btCollisionShape * shape = shapes[i];
+		btCollisionShape* shape = shapes[i];
 		if (shape->isCompound())
 		{
-			btCompoundShape * cs = (btCompoundShape *)shape;
-			for (int i = 0; i < cs->getNumChildShapes(); i++)
-			{
-				delete cs->getChildShape(i);
-			}
+			btCompoundShape* cs = (btCompoundShape*)shape;
+			for (c = 0; c < cs->getNumChildShapes(); ++c)
+				delete cs->getChildShape(c);
 		}
 		delete shape;
 	}
 	shapes.resize(0);
 	
-	for(int i = 0; i < meshes.size(); i++)
-	{
+	for (i = 0; i < meshes.size(); ++i)
 		delete meshes[i];
-	}
+
 	meshes.resize(0);
 	
-	for(int i = 0; i < actions.size(); i++)
-	{
+	for (i = 0; i < actions.size(); ++i)
 		world->removeAction(actions[i]);
-	}
+
 	actions.resize(0);
 }

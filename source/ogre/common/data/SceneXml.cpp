@@ -3,6 +3,8 @@
 #include "../vdrift/par.h"
 #include "SceneXml.h"
 #include "FluidsXml.h"
+#include "TracksXml.h"
+#include "../Axes.h"
 #include "tinyxml.h"
 #include "tinyxml2.h"
 #include <OgreSceneNode.h>
@@ -15,7 +17,7 @@ using namespace tinyxml2;
 Scene::Scene()
 	: pGame(0)
 {
-	pFluidsXml = 0;
+	pFluidsXml = 0;  pReverbsXml = 0;
 	Default();
 }
 void Scene::Default()
@@ -25,6 +27,8 @@ void Scene::Default()
 	asphalt = false;  denyReversed = false;  noWrongChks = false;
 	windAmt = 0.f;  damageMul = 1.f;
 	gravity = 9.81f;
+	
+	sAmbient = "";  sReverbs = "";
 
 	skyMtr = "World/NoonSky";  skyYaw = 0.f;
 	rainEmit = 0;  rainName = "";
@@ -89,14 +93,14 @@ SGrassChannel::SGrassChannel()
 
 
 FluidBox::FluidBox()
-	:cobj(0), id(-1), idParticles(0), solid(false)
+	:cobj(0), id(-1), idParticles(0), solid(false), deep(false)
 	,pos(Vector3::ZERO), rot(Vector3::ZERO)
 	,size(Vector3::ZERO), tile(0.01,0.01)
 {	}
 
 Object::Object()
 	:nd(0),ent(0),ms(0),co(0),rb(0), dyn(false)
-	,pos(0,0,0),rot(0,-1,0,0)
+	,pos(0,0,0),rot(0,-1,0,0), tr1(0)
 	,scale(Vector3::UNIT_SCALE)
 {	}
 
@@ -117,19 +121,33 @@ pair <MATHVECTOR<float,3>, QUATERNION<float> > Scene::GetStart(int index)
 
 
 ///  bullet to ogre  ----------
-Quaternion Object::qrFix(  0.707107, 0, 0.707107, 0);  //SetAxisAngle( PI_d/2.f, 0,1,0);
-Quaternion Object::qrFix2(-0.707107, 0, 0.707107, 0);  //SetAxisAngle(-PI_d/2.f, 0,1,0);
-
 void Object::SetFromBlt()
 {
 	if (!nd)  return;
-	Vector3 posO = Vector3(pos[0],pos[2],-pos[1]);
+	nd->setPosition(Axes::toOgre(pos));
+	nd->setOrientation(Axes::toOgreW(rot));
+}
 
-	Quaternion q(rot[0],-rot[3],rot[1],rot[2]);
-	Quaternion rotO = q * qrFix;
 
-	nd->setPosition(posO);
-	nd->setOrientation(rotO);
+void Scene::UpdRevSet()
+{
+	if (!pReverbsXml)  return;
+	string s = sReverbs == "" ? "base" : sReverbs;
+
+	int id = pReverbsXml->revmap[sReverbs]-1;
+	if (id == -1)
+	{	LogO("!scene.xml reverb set not found in xml: "+sReverbs);
+		//..
+	}else
+	{	const ReverbSet &r = pReverbsXml->revs[id], &b = pReverbsXml->base;
+		revSet.descr   = r.descr   != "" ? r.descr   : b.descr;
+		revSet.normal  = r.normal  != "" ? r.normal  : b.normal;
+		revSet.cave    = r.cave    != "" ? r.cave    : b.cave;
+		revSet.cavebig = r.cavebig != "" ? r.cavebig : b.cavebig;
+		revSet.pipe    = r.pipe    != "" ? r.pipe    : b.pipe;
+		revSet.pipebig = r.pipebig != "" ? r.pipebig : b.pipebig;
+		revSet.influid = r.influid != "" ? r.influid : b.influid;
+	}
 }
 
 
@@ -144,10 +162,12 @@ void Scene::UpdateFluidsId()
 		fluids[i].id = id;
 		fluids[i].idParticles = id == -1 ? -1    : pFluidsXml->fls[id].idParticles;
 		fluids[i].solid       = id == -1 ? false : pFluidsXml->fls[id].solid;
+		fluids[i].deep        = id == -1 ? false : pFluidsXml->fls[id].deep;
 		if (id == -1)
-			LogO("! Scene fluid name: " + fluids[i].name + " not found in xml !");
+			LogO("!Warning: Scene fluid name: " + fluids[i].name + " not found in xml!");
 	}
 }
+
 
 void Scene::UpdateSurfId()
 {

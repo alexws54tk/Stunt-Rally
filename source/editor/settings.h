@@ -3,7 +3,7 @@
 #include "../ogre/common/settings_com.h"
 
 
-#define SET_VER  2500  // 2.5
+#define SET_VER  2600  // 2.6
 
 
 class SETTINGS : public SETcom
@@ -40,6 +40,10 @@ public:
 
 	//  align ter
 	float al_w_mul, al_w_add, al_smooth;
+	
+	//  pacenotes
+	int pace_show;  float pace_dist, pace_size, pace_near, pace_alpha;
+	bool trk_reverse, show_mph;
 
 	//  tweak
 	std::string tweak_mtr;

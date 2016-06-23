@@ -80,7 +80,7 @@ void CGui::CarListUpd(bool resetNotFound)
 				if (name == pSet->gui.car[0])  {  si = ii;
 					carList->setIndexSelected(si);
 					bFound = true;  }
-				ii++;
+				++ii;
 		}	}
 
 		//  not found last car, set last
@@ -117,9 +117,10 @@ void CGui::FillCarList()
 		{	String s = *i;
 			CarL c;  c.name = *i;  //c.pA = this;
 			int id = data->cars->carmap[*i];
-			c.ci = id==0 ? 0 : &data->cars->cars[id-1];
-			liCar.push_back(c);
-	}	}
+			if (id)
+			{	c.ci = &data->cars->cars[id-1];
+				liCar.push_back(c);
+	}	}	}
 }
 //-----------------------------------------------------------------------------------------------------------
 
@@ -249,7 +250,7 @@ void CGui::listCarChng(MultiList2* li, size_t)
 
 	changeCar();
 	UpdCarStats(car);
-	LogO(Ogre::String(":::: Time car tab upd: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");
+	//LogO(String(":::: Time car tab upd: ") + fToStr(ti.getMilliseconds(),0,3) + " ms");
 }	
 void CGui::changeCar()
 {
@@ -452,15 +453,21 @@ void CGui::changeTrack()
 }
 
 //  new game
-void CGui::btnNewGame(WP)
+void CGui::btnNewGame(WP wp)
 {
 	if (app->mWndGame->getVisible() && app->mWndTabsGame->getIndexSelected() < TAB_Champs  || app->mClient)
 		BackFromChs();  /// champ, back to single race
 	
-	app->NewGame();  app->isFocGui = false;  // off gui
-	if (app->mWndOpts)  app->mWndOpts->setVisible(app->isFocGui);
-	if (app->mWndRpl)  app->mWndRpl->setVisible(false);//
-	if (gcom->bnQuit)  gcom->bnQuit->setVisible(app->isFocGui);
+	bool force = false;
+	if (wp)
+	{	string s = wp->getName();
+		s = s.substr(s.length()-1,1);
+		bool force = s=="3" || s=="4";
+	}
+	app->NewGame(force);  app->isFocGui = false;  // off gui
+	app->mWndOpts->setVisible(app->isFocGui);
+	app->mWndRpl->setVisible(false);//
+	gcom->bnQuit->setVisible(app->isFocGui);
 	
 	app->updMouse();
 	
@@ -482,14 +489,14 @@ void CGui::toggleGui(bool toggle)
 		app->isFocGui = !app->isFocGui;
 
 	bool notMain = app->isFocGui && !pSet->isMain;
-	if (app->mWndMain)	app->mWndMain->setVisible(app->isFocGui && pSet->isMain);
-	if (app->mWndReplays) app->mWndReplays->setVisible(notMain && pSet->inMenu == MNU_Replays);
-	if (app->mWndHelp)	app->mWndHelp->setVisible(notMain && pSet->inMenu == MNU_Help);
-	if (app->mWndOpts)	app->mWndOpts->setVisible(notMain && pSet->inMenu == MNU_Options);
+	app->mWndMain->setVisible(app->isFocGui && pSet->isMain);
+	app->mWndReplays->setVisible(notMain && pSet->inMenu == MNU_Replays);
+	app->mWndHelp->setVisible(notMain && pSet->inMenu == MNU_Help);
+	app->mWndOpts->setVisible(notMain && pSet->inMenu == MNU_Options);
 	if (!app->isFocGui)  app->mWndTrkFilt->setVisible(false);
 	
 	//  load Readme editbox from file
-	if (app->mWndHelp && app->mWndHelp->getVisible() && loadReadme)
+	if (app->mWndHelp->getVisible() && loadReadme)
 	{
 		loadReadme = false;
 		Ed ed = fEd("Readme");
@@ -514,15 +521,13 @@ void CGui::toggleGui(bool toggle)
 
 	UpdChampTabVis();
 	
-	if (app->mWndGame)
-	{	bool vis = notMain  && gc;
-		app->mWndGame->setVisible(vis);
-		if (vis)
-		{
-			app->mWndGame->setCaption(chAny ? sCh : TR("#{SingleRace}"));
-			TabItem* t = app->mWndTabsGame->getItemAt(TAB_Champs);
-			t->setCaption(sCh);
-		}
+	bool vis = notMain  && gc;
+	app->mWndGame->setVisible(vis);
+	if (vis)
+	{
+		app->mWndGame->setCaption(chAny ? sCh : TR("#{SingleRace}"));
+		TabItem* t = app->mWndTabsGame->getItemAt(TAB_Champs);
+		t->setCaption(sCh);
 	}
 	if (notMain && gc)  // show hide champs,stages
 	{
@@ -535,7 +540,7 @@ void CGui::toggleGui(bool toggle)
 		t->setButtonWidthAt(TAB_Stage, chAny ?-1 : 1);  if (id == TAB_Stage  && !chAny)  t->setIndexSelected(TAB_Track);
 	}
 
-	if (gcom->bnQuit)  gcom->bnQuit->setVisible(app->isFocGui);
+	gcom->bnQuit->setVisible(app->isFocGui);
 	app->updMouse();
 	if (!app->isFocGui)  gcom->mToolTip->setVisible(false);
 
@@ -693,5 +698,22 @@ void CGui::GuiUpdate()
 
 		FillTweakLists();
 		btnTweakTireLoad(0);  // load back
+	}
+	
+	
+	///  rpl convert tool
+	if (bConvertRpl)
+	{	boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+
+		txtConvert->setCaption(
+		"#C0C0FF""Path: "+ iToStr(iConvPathCur+1,1) +" / "+ iToStr(iConvPathAll,1) +"\n"+
+		"#A0D0FF""Files: "+ iToStr(iConvCur+1,4) +" / "+ iToStr(iConvAll,4) +"  : "+ iToStr(iConvFiles,4) +"\n"+
+		(totalConv == 0 ? "" :
+		"#A0F0F0""Progress: "+ fToStr(100.f* float(totalConvCur)/float(totalConv), 2,5) +" %\n")+
+		"#A0C0E0""Sizes\n"+
+		"#F0A0A0""old:    "+ fToStr( float(totalConv)/1000000.f, 2,5) +" MiB\n"+
+		"#A0F0A0""new:  "+ fToStr( float(totalConvNew)/1000000.f, 2,5) +" MiB\n"+
+		(totalConvCur!=totalConv || totalConv==0 ? "" :
+		"#F0F0A0""ratio:  "+ fToStr(100.f* float(totalConvNew)/float(totalConv), 1,4) +" %") );
 	}
 }

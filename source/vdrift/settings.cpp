@@ -102,10 +102,14 @@ void SETTINGS::Serialize(bool w, CONFIGFILE & c)
 	Param(c,w, "hud_size.gauges_type", gauges_type);	//Param(c,w, "hud_size.gauges_layout", gauges_layout);
 	//  cam
 	Param(c,w, "hud_size.cam_loop_chng", cam_loop_chng); Param(c,w, "hud_size.cam_in_loop", cam_in_loop);
-	Param(c,w, "hud_size.fov", fov_min);		Param(c,w, "hud_size.fov_max", fov_max);
+	Param(c,w, "hud_size.fov", fov_min);				Param(c,w, "hud_size.fov_max", fov_max);
 	Param(c,w, "hud_size.fov_smooth", fov_smooth);
 	Param(c,w, "hud_size.cam_bounce", cam_bounce);		Param(c,w, "hud_size.cam_bnc_mul", cam_bnc_mul);
-
+	//  pacenotes
+	Param(c,w, "pacenotes.show", pace_show);		Param(c,w, "pacenotes.dist", pace_dist);
+	Param(c,w, "pacenotes.size", pace_size);		Param(c,w, "pacenotes.near", pace_near);
+	Param(c,w, "pacenotes.next", pace_next);		Param(c,w, "pacenotes.alpha", pace_alpha);
+	
 
 	//  graphics
 	Param(c,w, "graph_par.particles", particles);			Param(c,w, "graph_par.trails", trails);
@@ -144,6 +148,7 @@ void SETTINGS::Serialize(bool w, CONFIGFILE & c)
 
 	
 	//  sound
+	Param(c,w, "sound.device", snd_device);			Param(c,w, "sound.reverb", snd_reverb);
 	Param(c,w, "sound.volume", vol_master);			Param(c,w, "sound.vol_engine", vol_engine);
 	Param(c,w, "sound.vol_tires", vol_tires);		Param(c,w, "sound.vol_env", vol_env);
 	Param(c,w, "sound.vol_susp", vol_susp);
@@ -180,7 +185,8 @@ SETTINGS::SETTINGS()   ///  Defaults
 	,show_cam(1), show_times(0), show_digits(1)
 	,show_opponents(1), opplist_sort(true), cam_tilt(1)
 	,car_dbgtxt(0), car_dbgbars(0), car_dbgsurf(0), show_graphs(0)
-	,car_dbgtxtclr(0), car_dbgtxtcnt(0), car_tirevis(0)
+	,car_dbgtxtclr(0), car_dbgtxtcnt(0), car_tirevis(0), sounds_info(0)
+	
 	,size_gauges(0.18), size_minimap(0.2), size_minipos(0.1), zoom_minimap(1.0)
 	,mini_zoomed(0), mini_rotated(1), mini_terrain(0), mini_border(1)
 	,check_arrow(0),size_arrow(0.2), check_beam(1)
@@ -189,6 +195,10 @@ SETTINGS::SETTINGS()   ///  Defaults
 	,cam_loop_chng(1), cam_in_loop(1)
 	,fov_min(90.f), fov_max(120.f), fov_smooth(5.f)
 	,cam_bounce(1), cam_bnc_mul(1.f)
+	//  pace
+	,pace_show(1), pace_next(4)
+	,pace_dist(200.f), pace_size(1.f), pace_near(1.f), pace_alpha(1.f)
+	
 	//  gui
 	,cars_view(0), cars_sort(1), cars_sortup(1)
 	,champ_type(0),tut_type(0),chall_type(0), champ_info(1)
@@ -229,6 +239,7 @@ SETTINGS::SETTINGS()   ///  Defaults
 	,vol_master(1.f), vol_engine(0.6f), vol_tires(1.f), vol_env(1.f), vol_susp(1.f)
 	,vol_fl_splash(1.f),vol_fl_cont(1.f), vol_car_crash(1.f),vol_car_scrap(1.f)
 	,vol_hud(1.f), snd_chk(0), snd_chkwr(1)
+	,snd_device(""), snd_reverb(1)
 	//  video eff
 	,all_effects(false), godrays(false), filmgrain(false)
 	,bloom(false), bloom_int(0.13), bloom_orig(0.9), hdr(false)

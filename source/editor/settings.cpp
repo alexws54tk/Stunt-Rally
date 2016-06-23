@@ -56,8 +56,13 @@ void SETTINGS::Serialize(bool w, CONFIGFILE & c)
 
 	Param(c,w, "teralign.w_mul", al_w_mul);			Param(c,w, "teralign.smooth", al_smooth);
 	Param(c,w, "teralign.w_add", al_w_add);
+
+	Param(c,w, "pacenotes.show", pace_show);		Param(c,w, "pacenotes.dist", pace_dist);
+	Param(c,w, "pacenotes.size", pace_size);
+	Param(c,w, "pacenotes.near", pace_near);		Param(c,w, "pacenotes.alpha", pace_alpha);
+	Param(c,w, "pacenotes.trk_reverse", trk_reverse);
+
 	Param(c,w, "tweak.mtr", tweak_mtr);
-	
 	Param(c,w, "pick.set_par", pick_setpar);
 }
 
@@ -82,6 +87,11 @@ SETTINGS::SETTINGS()  ///  Defaults
 	,gen_terMinH(-300.f),gen_terMaxH(300.f),gen_terSmH(10.f)
 	//  align ter
 	,al_w_mul(1.f), al_w_add(8.f), al_smooth(2.f)
+	//  pacenotes
+	,pace_show(3), pace_dist(1000.f), pace_size(1.f)
+	,pace_near(1.f), pace_alpha(1.f)
+	,trk_reverse(0), show_mph(0)
+	//  tweak
 	,tweak_mtr("")
 	//  pick
 	,pick_setpar(1)

@@ -11,6 +11,8 @@
 #include "common/MultiList2.h"
 #include "common/Slider.h"
 #include "common/Gui_Popup.h"
+#include "common/data/CData.h"
+#include "common/data/TracksXml.h"
 #include <OgreRoot.h>
 #include <OgreRenderWindow.h>
 #include <OgreOverlay.h>
@@ -166,19 +168,20 @@ void CGui::InitGui()
 						sv->Init("ReflMode",	&pSet->refl_mode,   0,2);  Sev(ReflMode);  sv->DefaultI(1);
 
 	//  Sound
-	sv= &svVolMaster;	sv->Init("VolMaster",	&pSet->vol_master, 0.f, 1.6f);  sv->DefaultF(0.80f);  Sev(VolMaster);
+	sv= &svVolMaster;	sv->Init("VolMaster",	&pSet->vol_master, 0.f, 2.0f);  sv->DefaultF(1.55f);  Sev(VolMaster);
+	ck= &ckReverb;		ck->Init("ChkReverb",   &pSet->snd_reverb);
 
-	sv= &svVolEngine;	sv->Init("VolEngine",	&pSet->vol_engine, 0.f, 1.4f);  sv->DefaultF(0.56f);
-	sv= &svVolTires;	sv->Init("VolTires",	&pSet->vol_tires,  0.f, 1.4f);  sv->DefaultF(0.80f);
-	sv= &svVolSusp;		sv->Init("VolSusp",		&pSet->vol_susp,   0.f, 1.4f);  sv->DefaultF(0.714f);
-	sv= &svVolEnv;		sv->Init("VolEnv",		&pSet->vol_env,    0.f, 1.4f);  sv->DefaultF(0.928f);
+	sv= &svVolEngine;	sv->Init("VolEngine",	&pSet->vol_engine, 0.f, 1.4f);  sv->DefaultF(0.58f);
+	sv= &svVolTires;	sv->Init("VolTires",	&pSet->vol_tires,  0.f, 1.4f);  sv->DefaultF(0.856f);
+	sv= &svVolSusp;		sv->Init("VolSusp",		&pSet->vol_susp,   0.f, 1.4f);  sv->DefaultF(0.474f);
+	sv= &svVolEnv;		sv->Init("VolEnv",		&pSet->vol_env,    0.f, 1.4f);  sv->DefaultF(0.748f);
 
-	sv= &svVolFlSplash;	sv->Init("VolFlSplash",	&pSet->vol_fl_splash, 0.f, 1.4f);  sv->DefaultF(0.80f);
+	sv= &svVolFlSplash;	sv->Init("VolFlSplash",	&pSet->vol_fl_splash, 0.f, 1.4f);  sv->DefaultF(0.636f);
 	sv= &svVolFlCont;	sv->Init("VolFlCont",	&pSet->vol_fl_cont,   0.f, 1.4f);  sv->DefaultF(0.878f);
-	sv= &svVolCarCrash;	sv->Init("VolCarCrash",	&pSet->vol_car_crash, 0.f, 1.4f);  sv->DefaultF(0.703f);
-	sv= &svVolCarScrap;	sv->Init("VolCarScrap",	&pSet->vol_car_scrap, 0.f, 1.4f);  sv->DefaultF(1.00f);
+	sv= &svVolCarCrash;	sv->Init("VolCarCrash",	&pSet->vol_car_crash, 0.f, 1.4f);  sv->DefaultF(0.608f);
+	sv= &svVolCarScrap;	sv->Init("VolCarScrap",	&pSet->vol_car_scrap, 0.f, 1.4f);  sv->DefaultF(0.915f);
 
-	sv= &svVolHud;		sv->Init("VolHud",		&pSet->vol_hud,    0.f, 2.f);  sv->DefaultF(1.f);  Sev(VolHud);
+	sv= &svVolHud;		sv->Init("VolHud",		&pSet->vol_hud,    0.f, 2.f);  sv->DefaultF(0.75f);  Sev(VolHud);
 	ck= &ckSndChk;		ck->Init("SndChk",		&pSet->snd_chk);
 	ck= &ckSndChkWr;	ck->Init("SndChkWr",    &pSet->snd_chkwr);
 
@@ -216,7 +219,7 @@ void CGui::InitGui()
 	graphSSS->setWidth(3.5f);
 
 
-	///  Checks
+	///  View Checks
 	//------------------------------------------------------------------------
 	ck= &ckReverse;		ck->Init("ReverseOn",	&pSet->gui.trackreverse);  Cev(Reverse);
 
@@ -249,7 +252,16 @@ void CGui::InitGui()
 	sv= &svFov;			sv->Init("Fov",			&pSet->fov_min,   50.f, 180.f, 1.f, 1,4);  sv->DefaultF(90.f);
 	sv= &svFovMax;		sv->Init("FovMax",		&pSet->fov_max,   50.f, 180.f, 1.f, 1,4);  sv->DefaultF(120.f);
 	sv= &svFovSm;		sv->Init("FovSm",		&pSet->fov_smooth, 0.f, 15.f, 1.5f);  sv->DefaultF(5.f);
-
+	
+	//  pacenotes
+	ck= &ckPaceShow;	ck->Init("ChkPace",		&pSet->pace_show);
+	sv= &svPaceNext;	sv->Init("PaceNext",	&pSet->pace_next,   2,8);  sv->DefaultI(4);
+	sv= &svPaceDist;	sv->Init("PaceDist",	&pSet->pace_dist,   20.f,1000.f, 2.f, 0,3);  sv->DefaultF(200.f);
+	
+	sv= &svPaceSize;	sv->Init("PaceSize",	&pSet->pace_size,   0.1f,2.f);  sv->DefaultF(1.f);  Sev(Upd_Pace);
+	sv= &svPaceNear;	sv->Init("PaceNear",	&pSet->pace_near,   0.1f,2.f);  sv->DefaultF(1.f);  Sev(Upd_Pace);
+	sv= &svPaceAlpha;	sv->Init("PaceAlpha",	&pSet->pace_alpha,  0.3f,1.f);  sv->DefaultF(1.f);  Sev(Upd_Pace);
+	//slUpd_Pace(0);
 
 	//  times, opp
 	ck= &ckTimes;		ck->Init("Times",       &pSet->show_times);      Cev(HudShow);
@@ -265,6 +277,7 @@ void CGui::InitGui()
 	ck= &ckProfilerTxt;	ck->Init("ProfilerTxt",  &pSet->profilerTxt);
 	ck= &ckBulletDebug;	ck->Init("BulletDebug",  &pSet->bltDebug);
 	ck= &ckBltProfTxt;	ck->Init("BltProfTxt",   &pSet->bltProfilerTxt);
+	ck= &ckSoundInfo;	ck->Init("SoundInfo",    &pSet->sounds_info);
 
 	ck= &ckCarDbgBars;	ck->Init("CarDbgBars",  &pSet->car_dbgbars);   Cev(HudShow);
 	ck= &ckCarDbgTxt;	ck->Init("CarDbgTxt",   &pSet->car_dbgtxt);    Cev(HudShow);
@@ -372,19 +385,19 @@ void CGui::InitGui()
 	ck= &ckBoostFOV;	ck->Init("BoostFOV",	&pSet->boost_fov);
 
 	ck= &ckBloom;		ck->Init("Bloom",		&pSet->bloom);  Cev(EffUpd);
-	sv= &svBloomInt;	sv->Init("BloomInt",	&pSet->bloom_int);   sv->DefaultF(0.13f);
-	sv= &svBloomOrig;	sv->Init("BloomOrig",	&pSet->bloom_orig);	 sv->DefaultF(0.91f);
+	sv= &svBloomInt;	sv->Init("BloomInt",	&pSet->bloom_int);   sv->DefaultF(0.13f);  Sev(EffUpd);
+	sv= &svBloomOrig;	sv->Init("BloomOrig",	&pSet->bloom_orig);	 sv->DefaultF(0.91f);  Sev(EffUpd);
 
 	ck= &ckBlur;		ck->Init("MotionBlur",	&pSet->blur);  Cev(EffUpdShd);
-	sv= &svBlurIntens;	sv->Init("BlurIntens",	&pSet->blur_int);	sv->DefaultF(0.4f);
+	sv= &svBlurIntens;	sv->Init("BlurIntens",	&pSet->blur_int);	sv->DefaultF(0.4f);  Sev(EffUpd);
 
 	ck= &ckSSAO;		ck->Init("SSAO",		&pSet->ssao);  Cev(EffUpdShd);
 	ck= &ckSoftPar;		ck->Init("SoftParticles",&pSet->softparticles);  Cev(EffUpdShd);
 	ck= &ckGodRays;		ck->Init("GodRays",		&pSet->godrays);  Cev(EffUpdShd);
 
 	ck= &ckDoF;			ck->Init("DepthOfField",&pSet->dof);  Cev(EffUpdShd);
-	sv= &svDofFocus;	sv->Init("DofFocus",	&pSet->dof_focus, 0.f, 2000.f, 2.f, 0,3);	sv->DefaultF(100.f);
-	sv= &svDofFar;		sv->Init("DofFar",		&pSet->dof_far,   0.f, 2000.f, 2.f, 0,4);	sv->DefaultF(1000.f);
+	sv= &svDofFocus;	sv->Init("DofFocus",	&pSet->dof_focus, 0.f, 2000.f, 2.f, 0,3);	sv->DefaultF(100.f);  Sev(EffUpd);
+	sv= &svDofFar;		sv->Init("DofFar",		&pSet->dof_far,   0.f, 2000.f, 2.f, 0,4);	sv->DefaultF(1000.f);  Sev(EffUpd);
 
 	//  hdr
 	ck= &ckHDR;				ck->Init("HDR",				&pSet->hdr);  Cev(EffUpd);
@@ -401,7 +414,8 @@ void CGui::InitGui()
 	//  replays  ------------------------------------------------------------
 	Btn("RplLoad",   btnRplLoad);    Btn("RplSave",   btnRplSave);
 	Btn("RplDelete", btnRplDelete);  Btn("RplRename", btnRplRename);
-	Btn("RenameOldTrk", btnRenameOldTrk);
+	Btn("RenameOldTrk", btnRenameOldTrk);  Btn("ConvertAllRpl", btnConvertAllRpl);
+	txtConvert = fTxt("TxtConvert");
 	//  settings
 	ck= &ckRplAutoRec;		ck->Init("RplChkAutoRec",	&app->bRplRec);
 	ck= &ckRplBestOnly;		ck->Init("RplChkBestOnly",	&pSet->rpl_bestonly);
@@ -438,6 +452,7 @@ void CGui::InitGui()
 		valRplCur = fTxt("RplTimeCur");
 		valRplLen = fTxt("RplTimeLen");
 	}
+
 	//  text desc, stats
 	valRplName = fTxt("RplName");  valRplName2 = fTxt("RplName2");
 	valRplInfo = fTxt("RplInfo");  valRplInfo2 = fTxt("RplInfo2");
@@ -451,39 +466,18 @@ void CGui::InitGui()
 
 	///  Car
 	//------------------------------------------------------------
-	const int clrBtn = 42, clrRow = 9;
-	Real hsv[clrBtn][5] = {  // color buttons  hue,sat,val, gloss,refl
-	{0.05,0.64,0.27, 0.10,0.9}, {0.00,1.00,0.75, 0.10,1.0}, {0.00,0.97,0.90, 0.3, 1.2},  // cherry, red
-	{0.91,1.00,1.00, 0.5, 1.0}, {0.88,1.00,0.97, 0.8, 0.8}, {0.85,1.00,1.00, 0.7, 0.7},  // orange, yellow
-	{0.75,0.95,0.90, 1.0, 0.7}, {0.70,1.00,0.70, 0.03,1.1}, {0.65,1.00,0.59, 0.10,1.3},  // lime, green
-
-	{0.35,1.00,0.26, 0.02,0.6}, {0.35,0.70,0.40, 0.5, 1.0}, {0.38,0.97,0.62, 0.5, 1.0},  // dark-blue
-	{0.45,0.73,0.37, 0.5, 1.0}, {0.44,0.90,0.71, 1.0, 1.1}, {0.46,0.85,0.75, 0.4, 1.0}, {0.47,0.80,0.80, 0.2, 0.9}, // sky-blue
-	{0.68,0.39,0.85, 0.47,1.1}, {0.63,0.21,0.62, 0.1, 1.2}, {0.80,0.52,0.32, 0.1, 0.6}, {0.62,0.74,0.12, 0.8, 0.7},  // olive-
-
-	{0.54,0.88,0.60, 0.7, 0.85},{0.51,0.90,0.50, 0.1, 0.7},  // cyan
-	{0.50,0.62,0.80, 0.09,0.9}, {0.50,0.33,0.90, 0.9, 1.0}, // light-cyan
-	{0.41,0.34,0.30, 0.01,0.3}, {0.43,0.58,0.23, 0.1, 1.0},  // dark-cyan
-	{0.45,0.42,0.52, 0.05,1.0},  // gray-cyan
-
-	{0.28,0.00,0.12, 0.09,0.0}, {0.28,0.00,0.07, 0.14,0.84},  // black
-	{0.83,0.00,0.20, 0.0, 0.8}, {0.83,0.00,0.40, 0.01,0.7}, {0.41,0.00,0.86, 0.15,0.37}, // gray, silver, white
-	{0.88,0.80,0.30, 0.02,0.8}, {0.91,0.40,0.37, 0.0, 1.0}, {0.83,0.31,0.31, 0.0, 0.6},  // brown, orng-white-
-	{0.20,0.40,0.37, 0.05,1.0}, // purple
-
-	{0.24,0.90,0.26, 0.04,0.8}, {0.28,0.57,0.17, 0.3, 1.0}, {0.27,0.38,0.23, 0.03,0.6},  // dark violet
-	{0.33,0.19,0.44, 0.04,0.8}, {0.42,0.48,1.00, 0.15,0.5}, {0.33,0.59,0.74, 0.04,0.8}, 
-	};
 	Tbi tbc = fTbi("CarClrs");
+	const int clrBtn = data->colors->v.size(), clrRow = data->colors->perRow, sx = data->colors->imgSize;
 	for (i=0; i < clrBtn; ++i)
 	{
 		int x = i % clrRow, y = i / clrRow;
 		Img img = tbc->createWidget<ImageBox>("ImageBox",
-			6+x*18, 6+y*18, 17,17, Align::Left, "carClr"+toStr(i));
+			6+x*sx, 1+y*sx, sx-1,sx-1, Align::Left, "carClr"+toStr(i));
 		img->setImageTexture("white.png");
 		gcom->setOrigPos(img, "GameWnd");
 
-		Real h = hsv[i][0], s = hsv[i][1], v = hsv[i][2], g = hsv[i][3], r = hsv[i][4];
+		const CarColor& cl = data->colors->v[i];
+		float h = cl.hue, s = cl.sat, v = cl.val, g = cl.gloss, r = cl.refl;
 		ColourValue c;  c.setHSB(1.f-h, s, v);
 		img->setColour(Colour(c.r,c.g,c.b));
 		img->eventMouseButtonClick += newDelegate(this, &CGui::imgBtnCarClr);
@@ -540,7 +534,7 @@ void CGui::InitGui()
 	listPlayers = fMli("MListPlayers");
 	ml = listPlayers;
 		ml->addColumn("#80C0FF"+TR("#{Player}"), 140);
-		ml->addColumn("#F08080"+TR("#{Car}"), 60);
+		ml->addColumn("#F08080"+TR("#{Vehicle}"), 80);
 		ml->addColumn("#C0C060"+TR("#{Peers}"), 60);
 		ml->addColumn("#60F0F0"+TR("#{Ping}"), 80);
 		ml->addColumn("#40F040"+TR("#{NetReady}"), 60);
@@ -647,7 +641,7 @@ void CGui::InitGui()
 	Mli2 li = carTab->createWidget<MultiList2>("MultiListBox",16,48,200,110, Align::Left | Align::VStretch);
 	li->setColour(Colour(0.7,0.85,1.0));
 	li->removeAllColumns();  int n=0;
-	li->addColumn("#FF8888"+TR("#{Car}"), colCar[n++]);
+	li->addColumn("#BBA8A8"+TR("#{Name}"), colCar[n++]);
 	li->addColumn("#C0B0A0""*"/*TR("#{CarSpeed}")*/, colCar[n++]);
 	li->addColumn("#B0B8C0"+TR("#{CarYear}"), colCar[n++]);
 	li->addColumn("#C0C0E0"+TR("#{CarType}"), colCar[n++]);
@@ -750,7 +744,7 @@ void CGui::InitGui()
 	li->removeAllColumns();  c=0;
 	li->addColumn("#80A080", colChL[c++]);
 	li->addColumn(TR("#60F060#{Name}"), colChL[c++]);		li->addColumn(TR("#F0D040#{Difficulty}"), colChL[c++]);
-	li->addColumn(TR("#F09090#{Cars}"), colChL[c++]);
+	li->addColumn(TR("#F09090#{Vehicles}"), colChL[c++]);
 	li->addColumn(TR("#80F0C0#{Stages}"), colChL[c++]);		li->addColumn(TR("#80E0FF#{Time} m"), colChL[c++]);
 	li->addColumn(TR("#D0C0FF#{Progress}"), colChL[c++]);
 	li->addColumn(TR("#F0F8FF#{Prize}"), colChL[c++]);		li->addColumn(TR("#F0D0F0#{Score}"), colChL[c++]);
